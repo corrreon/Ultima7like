@@ -1,5 +1,11 @@
 import { GameClock } from './core/clock';
 import { GameLoop } from './core/loop';
+import {
+  clearStorage,
+  readFromStorage,
+  writeToStorage,
+  type GameState,
+} from './core/savegame';
 import { Rng } from './core/rng';
 import { TILE_SIZE } from './core/constants';
 import { Input, type PointerDown } from './input/input';
@@ -33,19 +39,24 @@ const INTERACT_RANGE = 3;
 const TILES_WIDE_DESKTOP = 24;
 const TILES_WIDE_PHONE = 13;
 
+/** Intervalle de sauvegarde automatique, en secondes reelles. */
+const AUTOSAVE_SECONDS = 30;
+
 class Game {
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Renderer;
   private readonly ui = new Ui();
   private readonly touch = new TouchControls();
   private readonly input: Input;
-  readonly clock = new GameClock(7, 30);
+  clock = new GameClock(7, 30);
   private readonly rng = new Rng(20250810);
-  readonly world: World;
-  readonly avatar: Actor;
-  private readonly ai: ScheduleAI;
+  world: World;
+  avatar: Actor;
+  private ai: ScheduleAI;
   /** Drapeaux de conversation partages par tout le jeu. */
-  private readonly flags = new Set<string>();
+  private flags = new Set<string>();
+  /** Secondes restantes avant la prochaine sauvegarde automatique. */
+  private autosaveTimer = AUTOSAVE_SECONDS;
   private dragging: { window: ContainerWindow; pointer: number; dx: number; dy: number } | null = null;
   /**
    * Facteur d'echelle de l'interface. Elle est dessinee en points logiques
@@ -66,24 +77,102 @@ class Game {
     this.input = new Input(this.canvas);
     this.touch.enabled = this.input.coarse;
 
-    this.world = buildTown();
-    const population = populate(this.world);
-    this.avatar = population.avatar;
+    // Reprise de la partie precedente si elle existe. C'est ce qui rend la
+    // sauvegarde utile sur telephone, ou il n'y a pas de touche a presser.
+    const restored = readFromStorage();
+    if (restored) {
+      this.world = restored.world;
+      this.avatar = restored.avatar;
+      this.clock = restored.clock;
+      this.flags = restored.flags;
+    } else {
+      this.world = buildTown();
+      this.avatar = populate(this.world).avatar;
+    }
     this.ai = new ScheduleAI(this.world, this.clock, this.rng);
 
     this.renderer.camera.x = this.avatar.px;
     this.renderer.camera.y = this.avatar.py;
 
+    // Une partie perdue parce que l'onglet s'est ferme est une mauvaise
+    // surprise evitable : on ecrit aussi au moment ou la page disparait.
+    window.addEventListener('pagehide', () => this.save(true));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.save(true);
+    });
+
     this.resize();
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('orientationchange', () => this.resize());
 
-    this.ui.addLog('Vous arrivez au bourg de Valmoret.');
+    this.ui.addLog(
+      restored ? 'Partie reprise.' : 'Vous arrivez au bourg de Valmoret.',
+    );
     this.ui.addLog(
       this.input.coarse
         ? 'Stick : marcher · Toucher : prendre · Agir : utiliser'
-        : 'Clic : marcher ou prendre · Double-clic : utiliser · I : sac',
+        : 'Clic : marcher · Double-clic : utiliser · I : sac · F5 : sauver',
     );
+  }
+
+  // --- Sauvegarde ---------------------------------------------------------
+
+  private get saveState(): GameState {
+    return { world: this.world, avatar: this.avatar, clock: this.clock, flags: this.flags };
+  }
+
+  /** `silent` : sauvegarde automatique, qui n'ecrit rien dans le journal. */
+  private save(silent = false): void {
+    const ok = writeToStorage(this.saveState);
+    this.autosaveTimer = AUTOSAVE_SECONDS;
+    if (silent) return;
+    this.ui.addLog(ok ? 'Partie sauvegardee.' : 'Sauvegarde impossible (stockage refuse).');
+  }
+
+  /**
+   * Recharge la derniere sauvegarde.
+   *
+   * Tout ce qui referencait l'ancien monde doit etre reconstruit : l'IA en
+   * garde une reference, et les fenetres d'inventaire pointent vers des objets
+   * qui n'existent plus.
+   */
+  private load(): void {
+    const restored = readFromStorage();
+    if (!restored) {
+      this.ui.addLog('Aucune sauvegarde.');
+      return;
+    }
+    this.world = restored.world;
+    this.avatar = restored.avatar;
+    this.clock = restored.clock;
+    this.flags = restored.flags;
+    this.ai = new ScheduleAI(this.world, this.clock, this.rng);
+
+    this.ui.windows.length = 0;
+    this.ui.conversation = null;
+    this.ui.held = null;
+    this.renderer.camera.x = this.avatar.px;
+    this.renderer.camera.y = this.avatar.py;
+    this.autosaveTimer = AUTOSAVE_SECONDS;
+    this.ui.addLog('Partie chargee.');
+  }
+
+  /** Repart de zero, en effacant la sauvegarde. */
+  private restart(): void {
+    clearStorage();
+    this.world = buildTown();
+    this.avatar = populate(this.world).avatar;
+    this.clock = new GameClock(7, 30);
+    this.flags = new Set();
+    this.ai = new ScheduleAI(this.world, this.clock, this.rng);
+
+    this.ui.windows.length = 0;
+    this.ui.conversation = null;
+    this.ui.held = null;
+    this.renderer.camera.x = this.avatar.px;
+    this.renderer.camera.y = this.avatar.py;
+    this.autosaveTimer = AUTOSAVE_SECONDS;
+    this.ui.addLog('Nouvelle partie.');
   }
 
   /**
@@ -151,6 +240,9 @@ class Game {
       this.ai.update(actor, dt);
     }
 
+    this.autosaveTimer -= dt;
+    if (this.autosaveTimer <= 0) this.save(true);
+
     this.renderer.camera.follow(this.avatar.px, this.avatar.py, dt);
     this.input.endFrame();
     this.touch.endFrame();
@@ -161,6 +253,9 @@ class Game {
       if (code === 'KeyI') this.openBag();
       else if (code === 'Escape') this.ui.closeTop();
       else if (code === 'KeyE' || code === 'Space') this.actNearby();
+      else if (code === 'F5') this.save();
+      else if (code === 'F9') this.load();
+      else if (code === 'F8') this.restart();
     }
   }
 
@@ -545,4 +640,20 @@ loop.start();
 // Poignee de debogage : indispensable pour inspecter la simulation depuis la
 // console ou depuis un test de bout en bout (avancer l'horloge de douze heures
 // pour verifier que le bourg se vide la nuit, par exemple).
-(window as unknown as { u7: unknown }).u7 = { game, world: game.world, clock: game.clock, avatar: game.avatar };
+//
+// Les champs sont des accesseurs, pas des copies : charger une partie ou en
+// demarrer une neuve remplace le monde, l'horloge et l'Avatar. Une poignee qui
+// aurait fige les references d'origine pointerait alors vers un monde mort —
+// et laisserait croire que le chargement n'a rien fait.
+(window as unknown as { u7: unknown }).u7 = {
+  game,
+  get world() {
+    return game.world;
+  },
+  get clock() {
+    return game.clock;
+  },
+  get avatar() {
+    return game.avatar;
+  },
+};

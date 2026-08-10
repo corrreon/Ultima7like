@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 46 tests
+npm test         # 57 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -20,6 +20,10 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | Prendre / poser | clic sur l'objet | toucher l'objet |
 | Sac | `I` | bouton **Sac** |
 | Fermer | `Échap` | bouton **Fermer** |
+| Sauver / charger | `F5` / `F9` (`F8` : nouvelle partie) | automatique |
+
+La partie est sauvegardée automatiquement toutes les 30 secondes et quand
+l'onglet passe en arrière-plan ; elle reprend seule au lancement.
 
 ---
 
@@ -95,13 +99,16 @@ précédente. Celui-ci a été suivi pour ce dépôt :
 9. **Cycle jour/nuit et lumières** — `src/render/lighting.ts`.
 10. **Dialogues à sujets** — `src/script/conversation.ts`.
 
-Viennent ensuite le combat, la magie, la sauvegarde et un éditeur de cartes :
+11. **Sauvegarde** — `src/core/savegame.ts`. À faire tôt : elle force à rendre
+    l'état sérialisable, ce qui révèle où cet état se cache.
+
+Viennent ensuite le combat, la magie et un éditeur de cartes :
 voir [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## 4. Les pièges, tels qu'ils se sont présentés
 
-Ces cinq-là ont réellement fait perdre du temps pendant l'écriture du
-prototype. Ils reviendront dans tout projet du même genre.
+Chacun a réellement fait perdre du temps pendant l'écriture du prototype. Ils
+reviendront dans tout projet du même genre.
 
 **Le tri en profondeur est le vrai sujet.** Dessiner un monde en fausse 3D
 revient à ordonner correctement des milliers de sprites. Exult résout le
@@ -142,6 +149,18 @@ n'obéissent pas aux mêmes règles : on voit par-dessus une table, on voit
 au-delà d'un étang, mais pas à travers une porte close. Deux notions distinctes,
 donc, et non un seul drapeau « solide ».
 
+**Compresser une carte demande de séparer ce qui se répète de ce qui varie.**
+Le codage par plages du terrain ne compressait presque rien tant qu'identifiant
+et variante étaient encodés ensemble : les variantes d'herbe sont tirées au
+hasard case par case, donc deux voisines diffèrent presque toujours. En les
+séparant, on passe de 7043 plages à moins de 900 pour 9216 cases.
+
+**Un monde rechargé invalide tout ce qui le référençait.** L'IA en garde une
+référence, les fenêtres d'inventaire pointent vers des objets qui n'existent
+plus, et une poignée de débogage qui aurait figé les références d'origine
+pointerait vers un monde mort — en laissant croire que le chargement n'a rien
+fait. C'est exactement le bug rencontré.
+
 **L'interface mobile n'est pas l'interface de bureau mise à l'échelle.** Un
 bandeau de 200 points occupe un cinquième d'un écran d'ordinateur et les deux
 tiers d'un téléphone. Grossir l'interface pour le doigt réduit d'autant le
@@ -168,6 +187,8 @@ habitants qui vivent leur journée.
   plus proche, interface dont les tailles s'adaptent à la densité d'écran et
   au format ; le zoom montre moins de tuiles sur un téléphone que sur un
   ordinateur, sinon les sprites deviennent des confettis.
+- **Sauvegarde** — état complet du monde dans le stockage local, reprise
+  automatique au lancement ; format versionné.
 - **Graphismes** — palette unifiée avec tramage, raccords entre terrains,
   toitures à deux pentes, ombres de contact, eau et flammes animées, portraits
   de dialogue. La méthode est détaillée dans
@@ -196,7 +217,7 @@ src/script/   usecode (comportements) et dialogues
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues
-tests/        46 tests sur la logique pure
+tests/        57 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

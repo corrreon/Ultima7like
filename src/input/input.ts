@@ -66,7 +66,17 @@ export class Input {
   private onKeyDown = (event: KeyboardEvent): void => {
     if (!this.keys.has(event.code)) this.pressed.push(event.code);
     this.keys.add(event.code);
-    if (event.code.startsWith('Arrow') || event.code === 'Space') event.preventDefault();
+    // Les fleches feraient defiler la page, et F5 la rechargerait — ce qui
+    // reviendrait a perdre la partie au moment meme ou on la sauvegarde.
+    if (
+      event.code.startsWith('Arrow') ||
+      event.code === 'Space' ||
+      event.code === 'F5' ||
+      event.code === 'F8' ||
+      event.code === 'F9'
+    ) {
+      event.preventDefault();
+    }
   };
 
   private onKeyUp = (event: KeyboardEvent): void => {

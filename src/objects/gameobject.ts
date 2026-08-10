@@ -7,8 +7,23 @@ export function resetObjectIds(): void {
   nextId = 1;
 }
 
+/** Prochain identifiant qui sera attribue. Sauvegarde par savegame.ts. */
+export function peekNextObjectId(): number {
+  return nextId;
+}
+
+/**
+ * Restaure le compteur d'identifiants apres un chargement.
+ * Ne recule jamais : deux objets vivants ne doivent pas partager un identifiant.
+ */
+export function setNextObjectId(value: number): void {
+  nextId = Math.max(nextId, value);
+}
+
 export interface ObjectInit {
   shape: string;
+  /** Identifiant impose, uniquement lors d'un chargement de partie. */
+  id?: number;
   frame?: number;
   tx?: number;
   ty?: number;
@@ -45,7 +60,15 @@ export class GameObject {
   readonly contents: GameObject[] = [];
 
   constructor(init: ObjectInit) {
-    this.id = nextId++;
+    if (init.id !== undefined) {
+      // Chargement d'une partie : on reprend l'identifiant d'origine, et on
+      // pousse le compteur au-dela pour que les objets crees ensuite ne
+      // reutilisent pas un identifiant deja vivant.
+      this.id = init.id;
+      nextId = Math.max(nextId, init.id + 1);
+    } else {
+      this.id = nextId++;
+    }
     this.shapeId = init.shape;
     this.frame = init.frame ?? 0;
     this.tx = init.tx ?? 0;

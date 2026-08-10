@@ -10,7 +10,7 @@ Le moteur est une **simulation à laquelle on ajoute un rendu**, et non un moteu
 graphique auquel on ajoute des règles. Concrètement :
 
 - la logique pure (objets, monde, pathfinding, emplois du temps, dialogues) ne
-  dépend jamais du DOM, et tourne donc sous Node — c'est ce qui rend les 37
+  dépend jamais du DOM, et tourne donc sous Node — c'est ce qui rend les 57
   tests possibles sans navigateur ;
 - toute la connaissance du canvas est confinée à `src/render/` et `src/input/`.
 
@@ -210,10 +210,16 @@ qui porte `door` s'ouvre, tout ce qui porte `container` s'ouvre, tout ce qui
 porte `food` se mange. Ce repli est essentiel — il évite d'écrire un script pour
 chacun des centaines d'objets d'un monde réel.
 
-**Limite connue.** Des closures ne se sérialisent pas. Le jour où il faudra
-sauvegarder une partie *au milieu* d'un script en cours (une cinématique, une
-quête à étapes), il faudra une vraie VM avec un état explicite. Tant que les
-scripts sont atomiques, l'approche actuelle suffit.
+**Limite connue, et ce que la sauvegarde en a dit.** On craint souvent que des
+closures rendent une partie insérialisable. La distinction qui compte est
+ailleurs : ces closures sont du **code**, pas de l'état. L'état d'un objet tient
+entièrement dans sa frame et sa qualité, donc rien n'a eu à être démêlé — voir
+la section Sauvegarde.
+
+La limite reste réelle mais plus étroite : le jour où il faudra sauvegarder au
+*milieu* d'un script en cours (une cinématique, une quête à étapes), il faudra
+une VM avec un état explicite. Tant que les scripts sont atomiques, l'approche
+actuelle suffit.
 
 ### Dialogues
 
@@ -224,6 +230,45 @@ visible un sujet chez Aldric, dont la réponse en débloque un chez Basile. Un
 sujet peut être présent dès le départ mais invisible tant que son drapeau n'est
 pas posé — c'est ainsi qu'un PNJ « sait » une chose seulement après que le
 joueur l'a apprise ailleurs.
+
+## Sauvegarde
+
+`src/core/savegame.ts`. Trois décisions structurent le format.
+
+**On sauvegarde le monde entier, pas un différentiel** par rapport à la graine
+de génération. C'est plus volumineux — 88 Ko pour le bourg — mais une
+sauvegarde ne se casse pas quand la carte change de version.
+
+**Les identifiants d'objets sont restaurés tels quels.** `ObjectInit` accepte un
+`id` imposé, et le compteur global est poussé au-delà du maximum rencontré : un
+objet créé après le chargement ne peut donc pas réutiliser l'identifiant d'un
+objet vivant. Un test le vérifie explicitement.
+
+**Le lien parent se reconstruit à la lecture.** L'arborescence des contenants
+est circulaire (un objet connaît son parent, le parent connaît ses enfants) :
+on ne sérialise que la descendance. Au chargement on remplit `contents` et
+`parent` directement, sans passer par `canAccept` — une règle de capacité qui
+aurait changé entre deux versions ne doit pas faire disparaître les affaires du
+joueur.
+
+### Le piège du codage par plages
+
+Le terrain est compressé par plages. Le premier jet encodait l'identifiant
+**et** la variante dans la même plage, et ne compressait quasiment rien : les
+variantes d'herbe sont tirées au hasard case par case, donc deux voisines
+diffèrent presque toujours. En séparant les deux — plages sur les identifiants,
+chaîne d'un chiffre par case pour les variantes — on passe de 7043 plages à
+moins de 900 pour 9216 cases.
+
+### Ce qui doit être reconstruit au chargement
+
+Remplacer le monde ne suffit pas : tout ce qui en gardait une référence devient
+obsolète. L'IA en tient une, les fenêtres d'inventaire pointent vers des objets
+qui n'existent plus, la caméra suit un Avatar disparu. Même chose pour la
+poignée de débogage `window.u7`, dont les champs sont des **accesseurs** et non
+des copies — figées, elles pointeraient vers un monde mort et laisseraient
+croire que le chargement n'a rien fait. C'est exactement le bug qui s'est
+produit pendant l'écriture.
 
 ## Ce qui n'est pas fait
 

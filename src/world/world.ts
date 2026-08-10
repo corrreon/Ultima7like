@@ -170,6 +170,19 @@ export class World {
     return found;
   }
 
+  /**
+   * Tous les objets poses dans le monde, tous chunks confondus.
+   * Les acteurs n'y figurent pas : ils vivent dans `actors`.
+   */
+  *allObjects(): Iterable<GameObject> {
+    for (const chunk of this.chunks.values()) yield* chunk.objects;
+  }
+
+  /** Coordonnees de tous les chunks existants. */
+  chunkKeys(): Array<{ cx: number; cy: number }> {
+    return [...this.chunks.values()].map((chunk) => ({ cx: chunk.cx, cy: chunk.cy }));
+  }
+
   actorAt(tx: number, ty: number, ignore?: Actor): Actor | null {
     for (const actor of this.actors) {
       if (actor === ignore || !actor.isAlive) continue;

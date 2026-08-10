@@ -9,31 +9,36 @@ import { GAME_MINUTES_PER_SECOND } from './constants';
  */
 export class GameClock {
   /** Minutes ecoulees depuis le debut de la partie. */
-  private totalMinutes: number;
+  private minutes: number;
 
   constructor(startHour = 7, startMinute = 0) {
-    this.totalMinutes = startHour * 60 + startMinute;
+    this.minutes = startHour * 60 + startMinute;
+  }
+
+  /** Etat complet de l'horloge, en minutes. C'est ce que la sauvegarde stocke. */
+  get totalMinutes(): number {
+    return this.minutes;
   }
 
   advance(realSeconds: number): void {
-    this.totalMinutes += realSeconds * GAME_MINUTES_PER_SECOND;
+    this.minutes += realSeconds * GAME_MINUTES_PER_SECOND;
   }
 
   get minute(): number {
-    return Math.floor(this.totalMinutes) % 60;
+    return Math.floor(this.minutes) % 60;
   }
 
   get hour(): number {
-    return Math.floor(this.totalMinutes / 60) % 24;
+    return Math.floor(this.minutes / 60) % 24;
   }
 
   get day(): number {
-    return Math.floor(this.totalMinutes / (60 * 24)) + 1;
+    return Math.floor(this.minutes / (60 * 24)) + 1;
   }
 
   /** Heure fractionnaire dans [0, 24), pratique pour interpoler la lumiere. */
   get hourFloat(): number {
-    return (this.totalMinutes / 60) % 24;
+    return (this.minutes / 60) % 24;
   }
 
   get isNight(): boolean {

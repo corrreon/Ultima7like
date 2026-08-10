@@ -17,20 +17,22 @@ la précédente.
 - [x] Cycle jour/nuit et sources de lumière
 - [x] Dialogues à sujets avec drapeaux partagés
 
-## Étape suivante — rendre le monde persistant
+## Fait — la persistance (v0.3)
 
-**La sauvegarde d'abord.** Elle est structurante : elle force à rendre l'état du
-jeu sérialisable, ce qui révèle immédiatement les endroits où l'état est caché
-dans des closures ou des références circulaires. La repousser coûte cher.
+La sauvegarde était l'étape structurante : elle force à rendre l'état
+sérialisable, ce qui révèle où cet état se cache. Verdict, détaillé dans
+ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 
-- [ ] Sérialisation de l'arbre d'objets (parents / contenus, identifiants
-      stables)
-- [ ] Sauvegarde des acteurs, de l'horloge et des drapeaux de conversation
-- [ ] Chargement, avec numéro de version et migration
-- [ ] Conséquence probable : remplacer les closures d'usecode par un état
-      explicite pour les scripts non atomiques (voir ARCHITECTURE.md)
+- [x] Sérialisation de l'arbre d'objets (identifiants stables, lien parent
+      reconstruit à la lecture)
+- [x] Acteurs, horloge, drapeaux de conversation, régions
+- [x] Terrain compressé par plages
+- [x] Numéro de version, avec point d'accroche pour les migrations
+- [x] Sauvegarde automatique, reprise au lancement, `F5` / `F9` / `F8`
+- [ ] Reste ouvert : un état explicite pour les scripts d'usecode non
+      atomiques, le jour où il faudra sauvegarder au milieu d'une cinématique
 
-## Ensuite — la boucle de jeu
+## Étape suivante — la boucle de jeu
 
 - [ ] **Combat** en temps réel avec pause, comme l'original : dégâts depuis
       `shape.damage`, portée, mode de combat par acteur
