@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 40 tests
+npm test         # 46 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -168,6 +168,10 @@ habitants qui vivent leur journée.
   plus proche, interface dont les tailles s'adaptent à la densité d'écran et
   au format ; le zoom montre moins de tuiles sur un téléphone que sur un
   ordinateur, sinon les sprites deviennent des confettis.
+- **Graphismes** — palette unifiée avec tramage, raccords entre terrains,
+  toitures à deux pentes, ombres de contact, eau et flammes animées, portraits
+  de dialogue. La méthode est détaillée dans
+  [docs/GRAPHISMES.md](docs/GRAPHISMES.md).
 
 Une poignée de débogage est exposée dans la console : `u7.clock.advance(600)`
 avance de dix heures, `u7.world` et `u7.avatar` donnent accès à la simulation.
@@ -192,7 +196,7 @@ src/script/   usecode (comportements) et dialogues
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues
-tests/        40 tests sur la logique pure
+tests/        46 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

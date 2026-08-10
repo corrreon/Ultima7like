@@ -54,6 +54,13 @@ export interface ShapeDef {
   stackable?: boolean;
   /** Les acteurs traversent la tuile mais y sont ralentis / en surbrillance. */
   surface?: 'water' | 'road' | 'interior';
+  /**
+   * Animation en boucle. Quand la frame de l'objet vaut `whenFrame`, le rendu
+   * fait defiler `frames` a la cadence indiquee. Ultima VII obtenait le meme
+   * effet par rotation de palette ; le principe est identique — un monde ou
+   * rien ne bouge a l'air d'une maquette.
+   */
+  anim?: { whenFrame: number; frames: number[]; fps: number };
 }
 
 const defs = new Map<string, ShapeDef>();
@@ -75,13 +82,23 @@ def({ id: 'woodfloor', name: 'Plancher', kind: 'terrain', footprint: [1, 1], hei
 // --- Decor et mobilier ----------------------------------------------------
 
 def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, frames: 1, solid: true });
-def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 1, roof: true });
+// Toiture : 12 frames = 4 positions en rang x 3 en colonne. Voir art.ts.
+def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 12, roof: true });
+def({ id: 'chimney', name: 'Cheminee', kind: 'object', footprint: [1, 1], height: 3, frames: 1, roof: true });
 def({ id: 'door', name: 'Porte', kind: 'object', footprint: [1, 1], height: 5, frames: 2, solid: true, door: true });
 def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, frames: 2, solid: true });
 def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
 def({ id: 'table', name: 'Table', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'chair', name: 'Chaise', kind: 'object', footprint: [1, 1], height: 2, frames: 1 });
 def({ id: 'bed', name: 'Lit', kind: 'object', footprint: [1, 2], height: 1, frames: 1 });
+def({ id: 'bookshelf', name: 'Bibliotheque', kind: 'object', footprint: [1, 1], height: 4, frames: 2, solid: true });
+def({ id: 'rug', name: 'Tapis', kind: 'object', footprint: [1, 1], height: 0, frames: 1 });
+def({ id: 'pot', name: 'Plante en pot', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
+def({ id: 'stool', name: 'Tabouret', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
+def({ id: 'dishes', name: 'Vaisselle', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
+// Applique murale : posee sur la tuile devant le mur, avec un lift de 2, elle
+// se dessine pile sur le mur. Non solide, sinon elle condamne les couloirs.
+def({ id: 'sconce', name: 'Applique', kind: 'object', footprint: [1, 1], height: 3, frames: 2, light: 3 });
 def({ id: 'anvil', name: 'Enclume', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'sign', name: 'Enseigne', kind: 'object', footprint: [1, 1], height: 3, frames: 1, solid: true });
 def({
@@ -97,14 +114,25 @@ def({
 });
 def({
   id: 'hearth',
-  name: 'Ame',
+  name: 'Atre',
   kind: 'object',
   footprint: [1, 1],
   height: 3,
-  frames: 2,
+  frames: 4,
   solid: true,
   light: 4,
+  anim: { whenFrame: 0, frames: [0, 1, 2], fps: 6 },
 });
+
+// --- Menu decor de sol ----------------------------------------------------
+// Rien de tout cela n'a d'effet sur le jeu : ces objets existent uniquement
+// pour remplir l'ecran. C'est pourtant l'un des plus gros ecarts avec Ultima
+// VII, dont chaque plan est dense en petits details.
+
+def({ id: 'flower', name: 'Fleur', kind: 'object', footprint: [1, 1], height: 1, frames: 3, takeable: true, weight: 1, volume: 1, value: 1 });
+def({ id: 'pebble', name: 'Cailloux', kind: 'object', footprint: [1, 1], height: 0, frames: 2 });
+def({ id: 'tuft', name: 'Touffe d\'herbe', kind: 'object', footprint: [1, 1], height: 0, frames: 2 });
+def({ id: 'mushroom', name: 'Champignon', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 1, food: 4 });
 
 // --- Contenants -----------------------------------------------------------
 
@@ -133,6 +161,19 @@ def({
   capacity: 25,
   weight: 150,
   volume: 15,
+});
+def({
+  id: 'crate',
+  name: 'Caisse',
+  kind: 'object',
+  footprint: [1, 1],
+  height: 2,
+  frames: 1,
+  solid: true,
+  container: true,
+  capacity: 30,
+  weight: 180,
+  volume: 18,
 });
 def({
   id: 'bag',

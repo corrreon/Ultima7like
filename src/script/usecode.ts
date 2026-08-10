@@ -116,8 +116,9 @@ onUse('lamppost', (obj, ctx) => {
   ctx.log(obj.frame === 0 ? 'La lanterne brule deja.' : 'La lanterne est eteinte.');
 });
 
+// Frame 0 : flammes (animees). Frame 3 : braises couvertes.
 onUse('hearth', (obj, ctx) => {
-  obj.frame = obj.frame === 0 ? 1 : 0;
+  obj.frame = obj.frame === 0 ? 3 : 0;
   ctx.log(obj.frame === 0 ? 'Le feu reprend.' : 'Vous couvrez les braises.');
 });
 

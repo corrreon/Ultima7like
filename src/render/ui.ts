@@ -1,7 +1,7 @@
 import type { GameClock } from '../core/clock';
 import type { Actor } from '../objects/actor';
 import type { GameObject } from '../objects/gameobject';
-import { getSprite } from './art';
+import { getPortrait, getSprite } from './art';
 import type { ConversationState, Topic } from '../script/conversation';
 
 /**
@@ -201,9 +201,7 @@ export class Ui {
 
     ctx.fillStyle = 'rgba(28, 22, 16, 0.94)';
     ctx.fillRect(window.x, window.y, window.width, window.height);
-    ctx.strokeStyle = '#6d5734';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(window.x + 0.5, window.y + 0.5, window.width - 1, window.height - 1);
+    carvedFrame(ctx, window.x, window.y, window.width, window.height);
 
     // Barre de titre
     ctx.fillStyle = '#3a2d1c';
@@ -261,40 +259,60 @@ export class Ui {
     ctx.font = '12px ui-monospace, monospace';
   }
 
+  /**
+   * Panneau de dialogue, avec portrait.
+   *
+   * Dans Ultima VII le portrait fait la moitie de la presence d'un
+   * personnage : sans lui, une conversation n'est qu'un pave de texte. Il est
+   * donc dessine en grand a gauche, et le texte se decale d'autant.
+   */
   private drawConversation(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     const conv = this.conversation!;
-    const panelH = 168;
+    const narrow = width < 460;
+    const panelH = 176;
     const y = height - panelH - 8 - this.bottomInset;
     const x = 24;
     const w = Math.min(width - 48, 620);
 
-    ctx.fillStyle = 'rgba(20, 16, 11, 0.95)';
+    ctx.fillStyle = 'rgba(20, 16, 11, 0.96)';
     ctx.fillRect(x, y, w, panelH);
-    ctx.strokeStyle = '#6d5734';
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, panelH - 1);
+    carvedFrame(ctx, x, y, w, panelH);
+
+    // Portrait, mis a l'echelle en entier pour rester net.
+    const portrait = getPortrait(conv.npc.shapeId);
+    let textX = x + 14;
+    if (portrait && !narrow) {
+      const scale = 2;
+      const pw = portrait.width * scale;
+      const ph = portrait.height * scale;
+      ctx.drawImage(portrait.canvas, x + 12, y + 14, pw, ph);
+      carvedFrame(ctx, x + 12, y + 14, pw, ph);
+      textX = x + 12 + pw + 14;
+    }
 
     ctx.fillStyle = '#e2c98a';
-    ctx.fillText(conv.npc.displayName, x + 14, y + 20);
+    ctx.fillText(conv.npc.displayName, textX, y + 24);
 
     ctx.fillStyle = '#ddd0b0';
-    const lines = wrap(ctx, conv.reply, w - 28);
-    let ly = y + 42;
+    const textWidth = x + w - textX - 14;
+    const lines = wrap(ctx, conv.reply, textWidth);
+    let ly = y + 46;
     for (const line of lines.slice(0, 4)) {
-      ctx.fillText(line, x + 14, ly);
+      ctx.fillText(line, textX, ly);
       ly += 16;
     }
 
     // Sujets cliquables
     this.topicRects = [];
     const topics = conv.state.visibleTopics();
-    let ty = y + 108;
-    let tx = x + 14;
+    let ty = y + 118;
+    let tx = textX;
     ctx.font = '12px ui-monospace, monospace';
     for (const topic of topics) {
       const label = `· ${topic.label}`;
       const tw = ctx.measureText(label).width + 14;
       if (tx + tw > x + w - 14) {
-        tx = x + 14;
+        tx = textX;
         ty += 20;
       }
       const hovered =
@@ -386,4 +404,42 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   }
   if (current) lines.push(current);
   return lines;
+}
+
+
+/**
+ * Cadre « sculpte ».
+ *
+ * Un simple rectangle d'un pixel fait interface de debogage. Un liseré clair
+ * en haut a gauche, sombre en bas a droite, et quatre rivets d'angle suffisent
+ * a evoquer un panneau de bois cercle de metal — c'est la meme regle de
+ * lumiere que pour les sprites, appliquee a l'interface.
+ */
+function carvedFrame(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#8a6f42';
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  ctx.strokeStyle = '#c2a86e';
+  ctx.beginPath();
+  ctx.moveTo(x + 1.5, y + h - 2.5);
+  ctx.lineTo(x + 1.5, y + 1.5);
+  ctx.lineTo(x + w - 2.5, y + 1.5);
+  ctx.stroke();
+  ctx.strokeStyle = '#3a2d1c';
+  ctx.beginPath();
+  ctx.moveTo(x + w - 1.5, y + 2.5);
+  ctx.lineTo(x + w - 1.5, y + h - 1.5);
+  ctx.lineTo(x + 2.5, y + h - 1.5);
+  ctx.stroke();
+  ctx.fillStyle = '#c2a86e';
+  for (const [cx, cy] of [
+    [x + 3, y + 3],
+    [x + w - 5, y + 3],
+    [x + 3, y + h - 5],
+    [x + w - 5, y + h - 5],
+  ] as Array<[number, number]>) {
+    ctx.fillRect(cx, cy, 2, 2);
+  }
+  ctx.restore();
 }

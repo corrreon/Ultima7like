@@ -35,12 +35,12 @@ const BLUEPRINTS: Blueprint[] = [
     oy: 24,
     rows: [
       '#############',
-      '#===========#',
+      '#===k=k=k===#',
       '#=b=======b=#',
       '#=t=c===t=c=#',
-      '#===========#',
+      '#==rrr=rrr==#',
       '#=C===h===B=#',
-      '#===========#',
+      '#=o=====p=o=#',
       '#=t=c=====t=#',
       '#####D#######',
     ],
@@ -53,11 +53,11 @@ const BLUEPRINTS: Blueprint[] = [
       '###########',
       '#=========#',
       '#=b=====C=#',
-      '#=========#',
+      '#=rr===rr=#',
       '#=a===h===#',
       '#=========#',
       '#=B=====t=#',
-      '#=========#',
+      '#=====o===#',
       '#####D#####',
     ],
   },
@@ -67,11 +67,11 @@ const BLUEPRINTS: Blueprint[] = [
     oy: 48,
     rows: [
       '####D#####',
-      '#========#',
+      '#=====k==#',
       '#=b====t=#',
-      '#========#',
+      '#=rr==rr=#',
       '#=C====c=#',
-      '#========#',
+      '#=p====o=#',
       '#=t====B=#',
       '##########',
     ],
@@ -84,9 +84,9 @@ const BLUEPRINTS: Blueprint[] = [
       '####D####',
       '#=======#',
       '#=b===C=#',
-      '#=======#',
+      '#=rr=rr=#',
       '#=t===c=#',
-      '#=======#',
+      '#=o===p=#',
       '#########',
     ],
   },
@@ -132,6 +132,8 @@ function place(world: World, shape: string, tx: number, ty: number, init: Partia
 function stampBuilding(world: World, plan: Blueprint): void {
   const height = plan.rows.length;
   const width = Math.max(...plan.rows.map((r) => r.length));
+  // Le faitage court au milieu du batiment, dans le sens de la longueur.
+  const ridgeRow = Math.floor((height - 1) / 2);
 
   world.regions.push({
     name: plan.name,
@@ -152,9 +154,16 @@ function stampBuilding(world: World, plan: Blueprint): void {
       world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx + ty) % 2);
 
       switch (char) {
-        case '#':
-          place(world, 'wall', tx, ty);
+        case '#': {
+          // Trois variantes de mur reparties de facon deterministe : panneau
+          // nu, croix de Saint-Andre, fenetre a meneaux. Une facade dont
+          // chaque tuile est identique se lit comme une texture repetee, pas
+          // comme un batiment.
+          const hash = (tx * 7 + ty * 13) % 11;
+          const variant = hash === 0 ? 2 : hash === 4 || hash === 8 ? 1 : 0;
+          place(world, 'wall', tx, ty, { frame: variant });
           break;
+        }
         case 'D':
           place(world, 'door', tx, ty);
           break;
@@ -179,14 +188,80 @@ function stampBuilding(world: World, plan: Blueprint): void {
         case 'h':
           place(world, 'hearth', tx, ty);
           break;
+        case 'k':
+          place(world, 'bookshelf', tx, ty, { frame: (tx + ty) % 2 });
+          break;
+        case 'r':
+          place(world, 'rug', tx, ty);
+          break;
+        case 'p':
+          place(world, 'pot', tx, ty);
+          break;
+        case 'o':
+          place(world, 'stool', tx, ty);
+          break;
         default:
           break; // '=' : plancher nu
       }
 
       // Toiture : decalee pour compenser le lift, et marquee au nom du
       // batiment afin de pouvoir disparaitre quand on entre.
-      const roof = place(world, 'roof', tx + ROOF_SHIFT, ty + ROOF_SHIFT, { name: plan.name });
+      //
+      // La frame encode la position de la tuile dans la toiture : faitage au
+      // milieu, versants de part et d'autre, egout aux extremites, rives a
+      // gauche et a droite. C'est ce qui transforme un plan de tuiles
+      // identiques en toit a deux pentes.
+      const rowKind =
+        row === ridgeRow ? 0 : row === 0 || row === height - 1 ? 3 : row < ridgeRow ? 1 : 2;
+      const colKind = col === 0 ? 0 : col === width - 1 ? 2 : 1;
+      const roof = place(world, 'roof', tx + ROOF_SHIFT, ty + ROOF_SHIFT, {
+        name: plan.name,
+        frame: rowKind * 3 + colKind,
+      });
       roof.tz = ROOF_LIFT;
+    }
+  }
+
+  // Cheminee, posee sur le faitage vers l'extremite ouest.
+  const chimney = place(world, 'chimney', plan.ox + 2 + ROOF_SHIFT, plan.oy + ridgeRow + ROOF_SHIFT, {
+    name: plan.name,
+  });
+  chimney.tz = ROOF_LIFT;
+}
+
+/**
+ * Ameublement d'appoint, ajoute apres coup.
+ *
+ * Deux details que les plans ASCII ne savent pas exprimer, et qui pesent
+ * lourd dans la lecture d'un interieur : la vaisselle qui traine sur les
+ * tables, et les appliques accrochees aux murs. L'applique est posee sur la
+ * tuile devant le mur avec un lift de 2 — le decalage diagonal de la hauteur
+ * la fait retomber pile sur la maconnerie.
+ */
+function furnishInteriors(world: World, rng: Rng): void {
+  for (const region of world.regions) {
+    let sconces = 0;
+    for (let ty = region.y0 + 1; ty < region.y1; ty++) {
+      for (let tx = region.x0 + 1; tx < region.x1; tx++) {
+        const here = world.objectsAt(tx, ty);
+
+        // Vaisselle sur une table sur deux.
+        if (here.some((o) => o.shapeId === 'table') && rng.chance(0.55)) {
+          const dishes = place(world, 'dishes', tx, ty);
+          dishes.tz = 1;
+          continue;
+        }
+
+        // Applique : tuile libre dont le voisin nord est un mur.
+        if (sconces >= 3 || here.length > 0) continue;
+        if (world.terrainAt(tx, ty) !== 'woodfloor') continue;
+        const north = world.objectsAt(tx, ty - 1);
+        if (!north.some((o) => o.shapeId === 'wall')) continue;
+        if (!rng.chance(0.4)) continue;
+        const sconce = place(world, 'sconce', tx, ty);
+        sconce.tz = 2;
+        sconces++;
+      }
     }
   }
 }
@@ -286,7 +361,40 @@ export function buildTown(seed = 1337): World {
     const tx = rng.int(2, WORLD_SIZE - 3);
     const ty = rng.int(2, WORLD_SIZE - 3);
     if (!isFree(tx, ty)) continue;
-    place(world, rng.chance(0.72) ? 'tree' : 'bush', tx, ty, { frame: rng.int(0, 1) });
+    if (rng.chance(0.72)) place(world, 'tree', tx, ty, { frame: rng.int(0, 2) });
+    else place(world, 'bush', tx, ty, { frame: rng.int(0, 1) });
+  }
+
+  // Menu decor de sol. Aucun effet sur le jeu, mais c'est l'un des plus gros
+  // ecarts avec Ultima VII : chacun de ses plans est dense en petits details,
+  // et un sol nu fait immediatement « niveau de test ».
+  for (let i = 0; i < 900; i++) {
+    const tx = rng.int(1, WORLD_SIZE - 2);
+    const ty = rng.int(1, WORLD_SIZE - 2);
+    const terrain = world.terrainAt(tx, ty);
+    if (world.objectsAt(tx, ty).length > 0) continue;
+
+    if (terrain === 'grass') {
+      const roll = rng.next();
+      if (roll < 0.42) place(world, 'tuft', tx, ty, { frame: rng.int(0, 1) });
+      else if (roll < 0.72) place(world, 'flower', tx, ty, { frame: rng.int(0, 2) });
+      else if (roll < 0.88) place(world, 'pebble', tx, ty, { frame: rng.int(0, 1) });
+      else place(world, 'mushroom', tx, ty);
+    } else if (terrain === 'dirt' && rng.chance(0.35)) {
+      place(world, 'pebble', tx, ty, { frame: rng.int(0, 1) });
+    } else if (terrain === 'sand' && rng.chance(0.25)) {
+      place(world, 'pebble', tx, ty, { frame: rng.int(0, 1) });
+    }
+  }
+
+  // Encombrement des abords : des caisses et tonneaux contre les facades,
+  // comme dans n'importe quel bourg habite.
+  for (const [tx, ty, shape] of [
+    [25, 31, 'crate'], [25, 30, 'barrel'], [39, 27, 'crate'],
+    [51, 32, 'barrel'], [63, 30, 'crate'], [63, 31, 'crate'],
+    [29, 56, 'barrel'], [53, 52, 'crate'],
+  ] as Array<[number, number, string]>) {
+    if (!world.isBlocked(tx, ty)) place(world, shape, tx, ty);
   }
 
   // Eclairage public le long des routes
@@ -301,6 +409,7 @@ export function buildTown(seed = 1337): World {
   place(world, 'sign', 58, 35, { name: 'Aldric, maitre forgeron' });
 
   fillContainers(world);
+  furnishInteriors(world, rng);
 
   return world;
 }
