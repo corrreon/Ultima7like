@@ -29,12 +29,32 @@ export class Chunk {
   }
 }
 
+/**
+ * Un batiment.
+ *
+ * Le rectangle n'est qu'une boite englobante, utile pour ecarter vite les
+ * tuiles trop lointaines. La forme reelle est portee par les deux masques, ce
+ * qui autorise les plans en L, les appentis et les cours interieures — un bourg
+ * fait de quatre rectangles a une silhouette pauvre, quelle que soit la qualite
+ * des tuiles.
+ */
 export interface BuildingRegion {
   name: string;
   x0: number;
   y0: number;
   x1: number;
   y1: number;
+  /** Largeur de la boite englobante, pas de ligne des masques. */
+  width: number;
+  /** La case appartient-elle au batiment (mur compris) ? */
+  cells: boolean[];
+  /** La case est-elle un interieur (donc pas un mur) ? */
+  interior: boolean[];
+}
+
+/** Index d'une tuile dans les masques d'une region. */
+function cellIndex(region: BuildingRegion, tx: number, ty: number): number {
+  return (ty - region.y0) * region.width + (tx - region.x0);
 }
 
 /**
@@ -278,10 +298,19 @@ export class World {
   /** Region (batiment) contenant la tuile, s'il y en a une. */
   regionAt(tx: number, ty: number): BuildingRegion | null {
     for (const region of this.regions) {
-      if (tx >= region.x0 && tx <= region.x1 && ty >= region.y0 && ty <= region.y1) {
-        return region;
-      }
+      if (tx < region.x0 || tx > region.x1 || ty < region.y0 || ty > region.y1) continue;
+      if (region.cells[cellIndex(region, tx, ty)]) return region;
     }
     return null;
+  }
+
+  /**
+   * La tuile est-elle a l'interieur d'un batiment, murs exclus ?
+   * C'est ce test — et non l'appartenance a la boite englobante — qui decide
+   * si un objet doit disparaitre sous un toit vu de l'exterieur.
+   */
+  isBuildingInterior(region: BuildingRegion, tx: number, ty: number): boolean {
+    if (tx < region.x0 || tx > region.x1 || ty < region.y0 || ty > region.y1) return false;
+    return region.interior[cellIndex(region, tx, ty)] === true;
   }
 }

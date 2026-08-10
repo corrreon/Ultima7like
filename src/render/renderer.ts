@@ -265,7 +265,9 @@ export class Renderer {
   ): boolean {
     const region = world.regionAt(tx, ty);
     if (!region || region.name === hiddenRegion) return false;
-    return tx > region.x0 && tx < region.x1 && ty > region.y0 && ty < region.y1;
+    // Le masque du batiment, et non sa boite englobante : sur un plan en L,
+    // le creux du L est dehors et doit rester visible.
+    return world.isBuildingInterior(region, tx, ty);
   }
 
   private collectObjects(

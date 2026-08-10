@@ -215,6 +215,17 @@ Dehors, même principe avec les **clôtures** : une prairie uniquement peuplée
 d'arbres n'a aucune ligne construite. Quelques barrières suffisent à structurer
 le paysage.
 
+### Le piège des objets décalés en hauteur
+
+Une conséquence non évidente du décalage diagonal du lift : les tuiles de
+toiture sont posées **deux cases plus loin** que le bâtiment qu'elles couvrent,
+donc elles retombent à l'intérieur de celui-ci. Toute requête « cette case
+est-elle libre ? » qui interroge naïvement les objets présents déclare alors la
+pièce entière occupée — et le mobilier ne se pose jamais, silencieusement.
+
+Il faut filtrer les toitures dans ces requêtes. Le symptôme est traître : rien
+ne plante, il manque simplement des meubles.
+
 ### La végétation porte la couleur
 
 Les arbres d'Ultima VII sont gros et souvent roux. Deux leviers, tous deux

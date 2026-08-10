@@ -793,19 +793,162 @@ function bookshelfSprite(seed: number): Sprite {
   });
 }
 
-/** Tapis : casse la monotonie d'un plancher et « meuble » le vide. */
+/**
+ * Tapis de 3x2 tuiles.
+ *
+ * Le premier jet posait trois tapis d'une tuile cote a cote : le motif se
+ * repetait a l'identique et l'ensemble se lisait comme du carrelage, pas comme
+ * un tapis. Un objet unique de 3x2 a un galon qui fait le tour et un motif
+ * central unique — c'est-a-dire qu'il ressemble a un tapis.
+ *
+ * Le sprite est ancre sur le coin bas-droit de l'emprise, comme tous les
+ * autres : il s'etend donc vers le nord-ouest.
+ */
 function rugSprite(): Sprite {
-  return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone('blood', 1), tone('blood', 2), 0.5);
-    px(ctx, 0, 0, T, 1, tone('blood', 3));
-    px(ctx, 0, T - 1, T, 1, tone('blood', 0));
-    // Galon et motif central.
-    px(ctx, 2, 2, T - 4, 1, tone('gold', 2));
-    px(ctx, 2, T - 3, T - 4, 1, tone('gold', 2));
-    px(ctx, 2, 2, 1, T - 4, tone('gold', 2));
-    px(ctx, T - 3, 2, 1, T - 4, tone('gold', 2));
-    px(ctx, 6, 6, 4, 4, tone('gold', 3));
-    px(ctx, 7, 7, 2, 2, tone('blood', 1));
+  const W = T * 3;
+  const H = T * 2;
+  return makeSprite(W, H, (ctx) => {
+    ditherRect(ctx, 0, 0, W, H, tone('blood', 1), tone('blood', 2), 0.5);
+    px(ctx, 0, 0, W, 1, tone('blood', 3));
+    px(ctx, 0, H - 1, W, 1, tone('blood', 0));
+    px(ctx, W - 1, 0, 1, H, tone('blood', 0));
+
+    // Galon exterieur, puis interieur.
+    for (const inset of [3, 6]) {
+      px(ctx, inset, inset, W - inset * 2, 1, tone('gold', 2));
+      px(ctx, inset, H - inset - 1, W - inset * 2, 1, tone('gold', 2));
+      px(ctx, inset, inset, 1, H - inset * 2, tone('gold', 2));
+      px(ctx, W - inset - 1, inset, 1, H - inset * 2, tone('gold', 2));
+    }
+
+    // Medaillon central.
+    const cx = W / 2;
+    const cy = H / 2;
+    ctx.fillStyle = tone('gold', 2);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 10, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = tone('blood', 0);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 7, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    px(ctx, cx - 2, cy - 1, 4, 2, tone('gold', 3));
+
+    // Franges aux deux extremites.
+    for (let x = 1; x < W; x += 3) {
+      px(ctx, x, 0, 1, 2, tone('linen', 3));
+      px(ctx, x, H - 2, 1, 2, tone('linen', 2));
+    }
+  });
+}
+
+/** Table de banquet, 2x1 tuiles : le meuble central d'une salle commune. */
+function longTableSprite(): Sprite {
+  const W = T * 2;
+  return makeSprite(W, T + 6, (ctx) => {
+    ditherRect(ctx, 1, 3, W - 2, 8, tone('wood', 2), tone('wood', 3), 0.5);
+    px(ctx, 1, 3, W - 2, 1, tone('wood', 4));
+    px(ctx, 1, 10, W - 2, 1, tone('wood', 0));
+    for (let x = 3; x < W - 2; x += 5) px(ctx, x, 4, 1, 6, tone('wood', 1));
+    // Quatre pieds plutot que deux : c'est ce qui distingue une table longue
+    // d'une table carree etiree.
+    for (const x of [2, W - 4]) {
+      px(ctx, x, 11, 2, 7, tone('wood', 1));
+      px(ctx, x, 11, 1, 7, tone('wood', 2));
+    }
+    px(ctx, W / 2 - 1, 11, 2, 7, tone('wood', 0));
+  });
+}
+
+/** Lit a baldaquin, 2x2 tuiles. */
+function canopyBedSprite(): Sprite {
+  const W = T * 2;
+  const H = T * 3;
+  return makeSprite(W, H, (ctx) => {
+    // Ciel de lit, porte par quatre colonnes.
+    px(ctx, 0, 0, W, 4, tone('cloth', 2));
+    px(ctx, 0, 0, W, 1, tone('cloth', 3));
+    px(ctx, 0, 3, W, 1, tone('cloth', 0));
+    for (const x of [1, W - 4]) {
+      px(ctx, x, 4, 3, H - 6, tone('wood', 1));
+      px(ctx, x, 4, 1, H - 6, tone('wood', 3));
+    }
+    // Tentures retenues aux colonnes.
+    px(ctx, 4, 4, 3, H - 14, tone('cloth', 1));
+    px(ctx, W - 7, 4, 3, H - 14, tone('cloth', 1));
+
+    // Couche.
+    ditherRect(ctx, 7, 10, W - 14, H - 16, tone('linen', 3), tone('linen', 4), 0.5);
+    px(ctx, 7, 10, W - 14, 7, tone('linen', 4)); // oreillers
+    px(ctx, 7, 17, W - 14, 1, tone('linen', 1));
+    ditherRect(ctx, 7, H - 14, W - 14, 9, tone('royal', 1), tone('royal', 2), 0.5);
+    px(ctx, 7, H - 14, W - 14, 1, tone('royal', 3));
+    px(ctx, 4, H - 5, W - 8, 3, tone('wood', 1));
+  });
+}
+
+/** Puits, 2x2 tuiles : le point de repere d'une place de village. */
+function wellSprite(): Sprite {
+  const W = T * 2;
+  const H = T * 2 + 12;
+  return makeSprite(W, H, (ctx) => {
+    // Toiture du puits.
+    px(ctx, 2, 2, W - 4, 6, tone('roof', 2));
+    px(ctx, 2, 2, W - 4, 1, tone('roof', 4));
+    px(ctx, 2, 7, W - 4, 1, tone('roof', 0));
+    px(ctx, W / 2 - 1, 0, 2, 3, tone('wood', 2));
+    // Montants.
+    px(ctx, 4, 8, 3, 14, tone('wood', 1));
+    px(ctx, 4, 8, 1, 14, tone('wood', 3));
+    px(ctx, W - 7, 8, 3, 14, tone('wood', 0));
+    // Treuil et corde.
+    px(ctx, 5, 13, W - 10, 3, tone('wood', 2));
+    px(ctx, 5, 13, W - 10, 1, tone('wood', 3));
+    px(ctx, W / 2, 16, 1, 8, tone('linen', 2));
+    px(ctx, W / 2 - 2, 24, 5, 4, tone('wood', 1));
+
+    // Margelle de pierre.
+    const top = H - 14;
+    ditherRect(ctx, 3, top, W - 6, 12, tone('stone', 2), tone('stone', 3), 0.45);
+    px(ctx, 3, top, W - 6, 2, tone('stone', 4));
+    px(ctx, 3, H - 2, W - 6, 2, tone('stone', 0));
+    for (let x = 6; x < W - 4; x += 6) px(ctx, x, top + 2, 1, 8, tone('stone', 1));
+    // Gueule du puits.
+    ctx.fillStyle = '#0a0908';
+    ctx.beginPath();
+    ctx.ellipse(W / 2, top + 5, W / 2 - 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+/** Charrette, 2x2 tuiles. */
+function cartSprite(): Sprite {
+  const W = T * 2;
+  const H = T * 2;
+  return makeSprite(W, H, (ctx) => {
+    // Timon.
+    px(ctx, W / 2 - 1, 0, 2, 8, tone('wood', 2));
+    // Caisse.
+    ditherRect(ctx, 3, 7, W - 6, H - 14, tone('wood', 2), tone('wood', 3), 0.45);
+    px(ctx, 3, 7, W - 6, 1, tone('wood', 4));
+    px(ctx, W - 4, 8, 1, H - 15, tone('wood', 0));
+    for (let x = 6; x < W - 4; x += 5) px(ctx, x, 8, 1, H - 16, tone('wood', 1));
+    // Chargement : sacs et foin.
+    px(ctx, 6, 9, 7, 5, tone('linen', 2));
+    px(ctx, 6, 9, 5, 1, tone('linen', 3));
+    px(ctx, 15, 10, 8, 4, tone('gold', 2));
+    // Roues.
+    for (const cx of [6, W - 7]) {
+      ctx.fillStyle = tone('wood', 1);
+      ctx.beginPath();
+      ctx.arc(cx, H - 6, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = tone('wood', 3);
+      ctx.beginPath();
+      ctx.arc(cx, H - 6, 2, 0, Math.PI * 2);
+      ctx.fill();
+      px(ctx, cx - 5, H - 7, 10, 1, tone('wood', 0));
+    }
   });
 }
 
@@ -1350,6 +1493,10 @@ export function buildArt(): void {
   atlas.set('chimney', [chimneySprite()]);
   atlas.set('bookshelf', [bookshelfSprite(800), bookshelfSprite(801)]);
   atlas.set('rug', [rugSprite()]);
+  atlas.set('longtable', [longTableSprite()]);
+  atlas.set('canopybed', [canopyBedSprite()]);
+  atlas.set('well', [wellSprite()]);
+  atlas.set('cart', [cartSprite()]);
   atlas.set('pot', [potSprite()]);
   atlas.set('stool', [stoolSprite()]);
   atlas.set('dishes', [dishesSprite()]);

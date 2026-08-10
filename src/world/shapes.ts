@@ -92,7 +92,16 @@ def({ id: 'table', name: 'Table', kind: 'object', footprint: [1, 1], height: 2, 
 def({ id: 'chair', name: 'Chaise', kind: 'object', footprint: [1, 1], height: 2, frames: 1 });
 def({ id: 'bed', name: 'Lit', kind: 'object', footprint: [1, 2], height: 1, frames: 1 });
 def({ id: 'bookshelf', name: 'Bibliotheque', kind: 'object', footprint: [1, 1], height: 4, frames: 2, solid: true });
-def({ id: 'rug', name: 'Tapis', kind: 'object', footprint: [1, 1], height: 0, frames: 1 });
+// --- Objets multi-tuiles --------------------------------------------------
+// L'emprise est donnee en tuiles [largeur, profondeur], et la tuile de l'objet
+// designe le coin bas-droit : un objet de 3x2 s'etend donc vers le nord-ouest.
+// Trois tapis d'une tuile cote a cote se lisent comme du carrelage ; un tapis
+// de 3x2 se lit comme un tapis.
+def({ id: 'rug', name: 'Tapis', kind: 'object', footprint: [3, 2], height: 0, frames: 1 });
+def({ id: 'longtable', name: 'Table de banquet', kind: 'object', footprint: [2, 1], height: 2, frames: 1, solid: true });
+def({ id: 'canopybed', name: 'Lit a baldaquin', kind: 'object', footprint: [2, 2], height: 4, frames: 1 });
+def({ id: 'well', name: 'Puits', kind: 'object', footprint: [2, 2], height: 5, frames: 1, solid: true });
+def({ id: 'cart', name: 'Charrette', kind: 'object', footprint: [2, 2], height: 3, frames: 1, solid: true });
 def({ id: 'pot', name: 'Plante en pot', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'stool', name: 'Tabouret', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
 def({ id: 'dishes', name: 'Vaisselle', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });

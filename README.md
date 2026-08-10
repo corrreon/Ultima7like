@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 57 tests
+npm test         # 61 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -217,7 +217,7 @@ src/script/   usecode (comportements) et dialogues
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues
-tests/        57 tests sur la logique pure
+tests/        61 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

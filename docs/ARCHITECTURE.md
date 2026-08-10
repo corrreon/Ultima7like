@@ -10,7 +10,7 @@ Le moteur est une **simulation à laquelle on ajoute un rendu**, et non un moteu
 graphique auquel on ajoute des règles. Concrètement :
 
 - la logique pure (objets, monde, pathfinding, emplois du temps, dialogues) ne
-  dépend jamais du DOM, et tourne donc sous Node — c'est ce qui rend les 57
+  dépend jamais du DOM, et tourne donc sous Node — c'est ce qui rend les 61
   tests possibles sans navigateur ;
 - toute la connaissance du canvas est confinée à `src/render/` et `src/input/`.
 
@@ -230,6 +230,21 @@ visible un sujet chez Aldric, dont la réponse en débloque un chez Basile. Un
 sujet peut être présent dès le départ mais invisible tant que son drapeau n'est
 pas posé — c'est ainsi qu'un PNJ « sait » une chose seulement après que le
 joueur l'a apprise ailleurs.
+
+## Bâtiments de forme libre
+
+Une `BuildingRegion` porte un rectangle englobant **et** deux masques de
+cases : `cells` (la case appartient-elle au bâtiment ?) et `interior` (est-ce
+autre chose qu'un mur ?). Le rectangle ne sert qu'à écarter vite les tuiles
+lointaines ; c'est le masque qui fait autorité.
+
+Sans cela, le creux d'un plan en L serait considéré comme intérieur, et tout ce
+qui s'y trouve disparaîtrait sous un toit inexistant.
+
+La toiture se calcule **localement** : pour chaque case, on mesure l'étendue du
+bâtiment dans sa colonne pour trouver le faîtage, et dans sa ligne pour trouver
+les rives. Sur un rectangle cela redonne la ligne du milieu ; sur un L, l'aile
+obtient son propre faîtage, plus bas que celui du corps principal.
 
 ## Sauvegarde
 

@@ -1,6 +1,6 @@
 import { Rng } from '../core/rng';
 import { GameObject } from '../objects/gameobject';
-import { World } from '../world/world';
+import { World, type BuildingRegion } from '../world/world';
 
 /**
  * Le bourg de Valmoret : la carte de demonstration.
@@ -38,7 +38,7 @@ const BLUEPRINTS: Blueprint[] = [
       '#===k=k=k===#',
       '#=b=======b=#',
       '#=t=c===t=c=#',
-      '#==rrr=rrr==#',
+      '#===========#',
       '#=C===h===B=#',
       '#=o=====p=o=#',
       '#=t=c=====t=#',
@@ -53,7 +53,7 @@ const BLUEPRINTS: Blueprint[] = [
       '###########',
       '#=========#',
       '#=b=====C=#',
-      '#=rr===rr=#',
+      '#=========#',
       '#=a===h===#',
       '#=========#',
       '#=B=====t=#',
@@ -69,7 +69,7 @@ const BLUEPRINTS: Blueprint[] = [
       '####D#####',
       '#=====k==#',
       '#=b====t=#',
-      '#=rr==rr=#',
+      '#========#',
       '#=C====c=#',
       '#=p====o=#',
       '#=t====B=#',
@@ -84,10 +84,28 @@ const BLUEPRINTS: Blueprint[] = [
       '####D####',
       '#=======#',
       '#=b===C=#',
-      '#=rr=rr=#',
+      '#=======#',
       '#=t===c=#',
       '#=o===p=#',
       '#########',
+    ],
+  },
+  {
+    // Plan en L. Une case blanche n'appartient pas au batiment : c'est ce qui
+    // libere la silhouette du bourg des quatre rectangles de depart. La
+    // toiture s'adapte toute seule, chaque colonne ayant son propre faitage.
+    name: 'Halle au grain',
+    ox: 14,
+    oy: 44,
+    rows: [
+      '#######     ',
+      '#=====#     ',
+      '#=k=t=#     ',
+      '#=====######',
+      '#=C========#',
+      '#=========o#',
+      '#=B=====t==#',
+      '######D#####',
     ],
   },
 ];
@@ -132,8 +150,20 @@ function place(world: World, shape: string, tx: number, ty: number, init: Partia
 function stampBuilding(world: World, plan: Blueprint): void {
   const height = plan.rows.length;
   const width = Math.max(...plan.rows.map((r) => r.length));
-  // Le faitage court au milieu du batiment, dans le sens de la longueur.
-  const ridgeRow = Math.floor((height - 1) / 2);
+  const charAt = (row: number, col: number): string => plan.rows[row]?.[col] ?? ' ';
+  /** Une case blanche du plan n'appartient pas au batiment. */
+  const isPart = (row: number, col: number): boolean => charAt(row, col) !== ' ';
+
+  // Masques de forme. Ils remplacent le simple rectangle : c'est ce qui permet
+  // les plans en L, les appentis et les cours.
+  const cells: boolean[] = [];
+  const interior: boolean[] = [];
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      cells.push(isPart(row, col));
+      interior.push(isPart(row, col) && charAt(row, col) !== '#' && charAt(row, col) !== 'D');
+    }
+  }
 
   world.regions.push({
     name: plan.name,
@@ -141,12 +171,40 @@ function stampBuilding(world: World, plan: Blueprint): void {
     y0: plan.oy,
     x1: plan.ox + width - 1,
     y1: plan.oy + height - 1,
+    width,
+    cells,
+    interior,
   });
 
+  /**
+   * Position d'une case dans la toiture, calculee **localement**.
+   *
+   * Sur un rectangle, le faitage est simplement la ligne du milieu. Sur un
+   * plan en L, chaque colonne a sa propre etendue verticale : le faitage de
+   * l'aile n'est pas celui du corps principal. On mesure donc, colonne par
+   * colonne, la premiere et la derniere case du batiment.
+   */
+  const roofFrame = (row: number, col: number): number => {
+    let top = row;
+    while (top > 0 && isPart(top - 1, col)) top--;
+    let bottom = row;
+    while (bottom < height - 1 && isPart(bottom + 1, col)) bottom++;
+    const ridge = Math.floor((top + bottom) / 2);
+    const rowKind = row === ridge ? 0 : row === top || row === bottom ? 3 : row < ridge ? 1 : 2;
+
+    let left = col;
+    while (left > 0 && isPart(row, left - 1)) left--;
+    let right = col;
+    while (right < width - 1 && isPart(row, right + 1)) right++;
+    const colKind = col === left ? 0 : col === right ? 2 : 1;
+
+    return rowKind * 3 + colKind;
+  };
+
   for (let row = 0; row < height; row++) {
-    const line = plan.rows[row]!;
-    for (let col = 0; col < line.length; col++) {
-      const char = line[col]!;
+    for (let col = 0; col < width; col++) {
+      const char = charAt(row, col);
+      if (char === ' ') continue; // hors du batiment
       const tx = plan.ox + col;
       const ty = plan.oy + row;
 
@@ -191,9 +249,6 @@ function stampBuilding(world: World, plan: Blueprint): void {
         case 'k':
           place(world, 'bookshelf', tx, ty, { frame: (tx + ty) % 2 });
           break;
-        case 'r':
-          place(world, 'rug', tx, ty);
-          break;
         case 'p':
           place(world, 'pot', tx, ty);
           break;
@@ -211,21 +266,27 @@ function stampBuilding(world: World, plan: Blueprint): void {
       // milieu, versants de part et d'autre, egout aux extremites, rives a
       // gauche et a droite. C'est ce qui transforme un plan de tuiles
       // identiques en toit a deux pentes.
-      const rowKind =
-        row === ridgeRow ? 0 : row === 0 || row === height - 1 ? 3 : row < ridgeRow ? 1 : 2;
-      const colKind = col === 0 ? 0 : col === width - 1 ? 2 : 1;
       const roof = place(world, 'roof', tx + ROOF_SHIFT, ty + ROOF_SHIFT, {
         name: plan.name,
-        frame: rowKind * 3 + colKind,
+        frame: roofFrame(row, col),
       });
       roof.tz = ROOF_LIFT;
     }
   }
 
-  // Cheminee, posee sur le faitage vers l'extremite ouest.
-  const chimney = place(world, 'chimney', plan.ox + 2 + ROOF_SHIFT, plan.oy + ridgeRow + ROOF_SHIFT, {
-    name: plan.name,
-  });
+  // Cheminee, posee sur le faitage du corps principal.
+  const stackCol = 2;
+  let stackRow = 0;
+  while (stackRow < height && !isPart(stackRow, stackCol)) stackRow++;
+  let bottom = stackRow;
+  while (bottom < height - 1 && isPart(bottom + 1, stackCol)) bottom++;
+  const chimney = place(
+    world,
+    'chimney',
+    plan.ox + stackCol + ROOF_SHIFT,
+    plan.oy + Math.floor((stackRow + bottom) / 2) + ROOF_SHIFT,
+    { name: plan.name },
+  );
   chimney.tz = ROOF_LIFT;
 }
 
@@ -238,12 +299,47 @@ function stampBuilding(world: World, plan: Blueprint): void {
  * tuile devant le mur avec un lift de 2 — le decalage diagonal de la hauteur
  * la fait retomber pile sur la maconnerie.
  */
+/**
+ * Objets reellement poses sur une tuile d'interieur.
+ *
+ * `objectsAt` renvoie aussi les tuiles de toiture : elles sont decalees de deux
+ * cases pour compenser le lift et retombent donc a l'interieur du batiment.
+ * Les compter revient a declarer toute la piece occupee — et c'est exactement
+ * ce qui empechait silencieusement le mobilier de se poser.
+ */
+function floorObjectsAt(world: World, tx: number, ty: number): GameObject[] {
+  return world.objectsAt(tx, ty).filter((o) => !o.shape.roof);
+}
+
+/** Le rectangle de tuiles est-il entierement libre et a l'interieur ? */
+function areaFree(world: World, region: BuildingRegion, tx: number, ty: number, w: number, h: number): boolean {
+  for (let y = ty - h + 1; y <= ty; y++) {
+    for (let x = tx - w + 1; x <= tx; x++) {
+      if (!world.isBuildingInterior(region, x, y)) return false;
+      if (floorObjectsAt(world, x, y).length > 0) return false;
+    }
+  }
+  return true;
+}
+
 function furnishInteriors(world: World, rng: Rng): void {
   for (const region of world.regions) {
     let wallProps = 0;
+
+    // Un tapis de 3x2 par batiment, pose sur la premiere aire libre trouvee.
+    // Trois tapis d'une tuile cote a cote se lisaient comme du carrelage ;
+    // un objet unique se lit comme un tapis.
+    let rugPlaced = false;
+    for (let ty = region.y0 + 2; ty <= region.y1 - 1 && !rugPlaced; ty++) {
+      for (let tx = region.x0 + 3; tx <= region.x1 - 1 && !rugPlaced; tx++) {
+        if (!areaFree(world, region, tx, ty, 3, 2)) continue;
+        place(world, 'rug', tx, ty);
+        rugPlaced = true;
+      }
+    }
     for (let ty = region.y0 + 1; ty < region.y1; ty++) {
       for (let tx = region.x0 + 1; tx < region.x1; tx++) {
-        const here = world.objectsAt(tx, ty);
+        const here = floorObjectsAt(world, tx, ty);
 
         // Vaisselle sur une table sur deux.
         if (here.some((o) => o.shapeId === 'table') && rng.chance(0.55)) {
@@ -255,7 +351,7 @@ function furnishInteriors(world: World, rng: Rng): void {
         // Accroches murales : tuile libre dont le voisin nord est un mur.
         if (wallProps >= 5 || here.length > 0) continue;
         if (world.terrainAt(tx, ty) !== 'woodfloor') continue;
-        const north = world.objectsAt(tx, ty - 1);
+        const north = floorObjectsAt(world, tx, ty - 1);
         if (!north.some((o) => o.shapeId === 'wall')) continue;
         if (!rng.chance(0.45)) continue;
 
@@ -349,6 +445,8 @@ export function buildTown(seed = 1337): World {
   stampRoad(world, 57, 35, 57, 38); // sortie de la forge
   stampRoad(world, 34, 40, 34, 47); // vers la maison de Basile
   stampRoad(world, 58, 40, 58, 47); // vers le corps de garde
+  stampRoad(world, 20, 40, 20, 52); // vers la halle au grain
+  stampRoad(world, 21, 40, 33, 40); // liaison est-ouest vers la halle
 
   for (const plan of BLUEPRINTS) stampBuilding(world, plan);
 
@@ -405,6 +503,11 @@ export function buildTown(seed = 1337): World {
   ] as Array<[number, number, string]>) {
     if (!world.isBlocked(tx, ty)) place(world, shape, tx, ty);
   }
+
+  // Puits sur la place et charrette pres de la forge : deux objets de 2x2 qui
+  // donnent de l'echelle a des espaces autrement vides.
+  if (!world.isBlocked(48, 41)) place(world, 'well', 48, 41);
+  if (!world.isBlocked(49, 35)) place(world, 'cart', 49, 35);
 
   // Barrieres : deux enclos de part et d'autre de la place. Une cloture donne
   // au paysage des lignes construites, ce qui manque cruellement a une prairie

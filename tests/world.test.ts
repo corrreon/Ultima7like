@@ -114,9 +114,59 @@ describe('monde et chunks', () => {
 describe('carte de Valmoret', () => {
   const world = buildTown();
 
-  it('genere les quatre batiments', () => {
-    expect(world.regions).toHaveLength(4);
+  it('genere les cinq batiments', () => {
+    expect(world.regions).toHaveLength(5);
     expect(world.regions.map((r) => r.name)).toContain('Taverne du Chat Endormi');
+    expect(world.regions.map((r) => r.name)).toContain('Halle au grain');
+  });
+
+  it('donne au batiment en L une forme reelle, pas sa boite englobante', () => {
+    const hall = world.regions.find((r) => r.name === 'Halle au grain')!;
+
+    // Le coin nord-est du rectangle est en dehors du batiment : c'est le creux
+    // du L. La boite englobante le contient, la forme reelle non.
+    const notch = { tx: hall.x1, ty: hall.y0 };
+    expect(notch.tx).toBeLessThanOrEqual(hall.x1);
+    expect(world.regionAt(notch.tx, notch.ty)).toBeNull();
+
+    // Le corps principal, lui, appartient bien au batiment.
+    expect(world.regionAt(hall.x0 + 3, hall.y0 + 2)?.name).toBe('Halle au grain');
+    expect(world.regionAt(hall.x1 - 1, hall.y1 - 2)?.name).toBe('Halle au grain');
+  });
+
+  it('distingue interieur et murs dans une region', () => {
+    const hall = world.regions.find((r) => r.name === 'Halle au grain')!;
+    // Coin haut-gauche : c'est un mur, donc pas un interieur.
+    expect(world.isBuildingInterior(hall, hall.x0, hall.y0)).toBe(false);
+    // Une case de plancher l'est.
+    expect(world.isBuildingInterior(hall, hall.x0 + 3, hall.y0 + 2)).toBe(true);
+    // Le creux du L n'est ni l'un ni l'autre.
+    expect(world.isBuildingInterior(hall, hall.x1, hall.y0)).toBe(false);
+  });
+
+  it('place les objets multi-tuiles sur toute leur emprise', () => {
+    const rug = [...world.allObjects()].find((o) => o.shapeId === 'rug');
+    expect(rug).toBeDefined();
+    expect(rug!.shape.footprint).toEqual([3, 2]);
+
+    // Un tapis de 3x2 ancre en (tx, ty) couvre tx-2..tx et ty-1..ty.
+    for (let dx = 0; dx < 3; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        expect(world.objectsAt(rug!.tx - dx, rug!.ty - dy)).toContain(rug);
+      }
+    }
+    expect(world.objectsAt(rug!.tx - 3, rug!.ty)).not.toContain(rug);
+    expect(world.objectsAt(rug!.tx + 1, rug!.ty)).not.toContain(rug);
+  });
+
+  it('pose un puits de 2x2 qui bloque ses quatre cases', () => {
+    const well = [...world.allObjects()].find((o) => o.shapeId === 'well');
+    expect(well).toBeDefined();
+    for (let dx = 0; dx < 2; dx++) {
+      for (let dy = 0; dy < 2; dy++) {
+        expect(world.isBlocked(well!.tx - dx, well!.ty - dy)).toBe(true);
+      }
+    }
   });
 
   it('place les lieux de vie sur des tuiles coherentes', () => {
