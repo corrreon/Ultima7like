@@ -2,7 +2,8 @@ import { GameClock } from './core/clock';
 import { GameLoop } from './core/loop';
 import { Rng } from './core/rng';
 import { TILE_SIZE } from './core/constants';
-import { Input } from './input/input';
+import { Input, type PointerDown } from './input/input';
+import { TouchControls } from './input/touch';
 import { Actor } from './objects/actor';
 import { GameObject } from './objects/gameobject';
 import { buildArt } from './render/art';
@@ -20,18 +21,23 @@ import type { World } from './world/world';
  * Assemblage du prototype.
  *
  * Le schema d'interaction reprend celui d'Ultima VII, reduit a deux gestes :
- *  - un clic simple deplace l'Avatar, ramasse un objet, ou repose l'objet tenu ;
- *  - un double-clic « utilise » : ouvrir une porte ou un coffre, manger, parler.
- * Tout le reste (inventaires imbriques, emplois du temps, jour et nuit) decoule
- * des systemes decrits dans docs/ARCHITECTURE.md.
+ *  - un appui simple deplace l'Avatar, ramasse un objet, ou repose l'objet tenu ;
+ *  - un double appui « utilise » : ouvrir une porte ou un coffre, manger, parler.
+ * Sur mobile s'y ajoutent un stick virtuel et un bouton « Agir » (voir
+ * src/input/touch.ts), qui doublent ces gestes sans les remplacer.
  */
 
 const INTERACT_RANGE = 3;
+
+/** Nombre de tuiles visibles en largeur, selon la taille d'ecran. */
+const TILES_WIDE_DESKTOP = 24;
+const TILES_WIDE_PHONE = 13;
 
 class Game {
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Renderer;
   private readonly ui = new Ui();
+  private readonly touch = new TouchControls();
   private readonly input: Input;
   readonly clock = new GameClock(7, 30);
   private readonly rng = new Rng(20250810);
@@ -40,7 +46,13 @@ class Game {
   private readonly ai: ScheduleAI;
   /** Drapeaux de conversation partages par tout le jeu. */
   private readonly flags = new Set<string>();
-  private dragging: { window: ContainerWindow; dx: number; dy: number } | null = null;
+  private dragging: { window: ContainerWindow; pointer: number; dx: number; dy: number } | null = null;
+  /**
+   * Facteur d'echelle de l'interface. Elle est dessinee en points logiques
+   * puis mise a l'echelle, sinon elle devient minuscule sur un ecran haute
+   * densite et illisible sur un telephone.
+   */
+  private uiScale = 1;
 
   constructor(container: HTMLElement) {
     buildArt();
@@ -52,6 +64,7 @@ class Game {
 
     this.renderer = new Renderer(ctx);
     this.input = new Input(this.canvas);
+    this.touch.enabled = this.input.coarse;
 
     this.world = buildTown();
     const population = populate(this.world);
@@ -63,15 +76,48 @@ class Game {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('orientationchange', () => this.resize());
 
     this.ui.addLog('Vous arrivez au bourg de Valmoret.');
-    this.ui.addLog('Clic : marcher ou prendre · Double-clic : utiliser · I : sac');
+    this.ui.addLog(
+      this.input.coarse
+        ? 'Stick : marcher · Toucher : prendre · Agir : utiliser'
+        : 'Clic : marcher ou prendre · Double-clic : utiliser · I : sac',
+    );
   }
 
+  /**
+   * Recalcule tout ce qui depend de la taille de l'ecran : resolution du
+   * canvas, zoom de la camera, echelle et disposition de l'interface.
+   */
   private resize(): void {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.canvas.width = Math.floor(window.innerWidth * dpr);
-    this.canvas.height = Math.floor(window.innerHeight * dpr);
+    const cssWidth = window.innerWidth;
+    const cssHeight = window.innerHeight;
+    this.canvas.width = Math.max(1, Math.floor(cssWidth * dpr));
+    this.canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
+
+    // Un telephone doit montrer moins de tuiles qu'un ecran de bureau, sinon
+    // les sprites deviennent des confettis. Le zoom reste entier pour garder
+    // le pixel art net.
+    const narrow = cssWidth < 720;
+    const targetTiles = narrow ? TILES_WIDE_PHONE : TILES_WIDE_DESKTOP;
+    this.renderer.camera.zoom = Math.max(
+      1,
+      Math.min(8, Math.round(this.canvas.width / (targetTiles * TILE_SIZE))),
+    );
+
+    // L'interface est dessinee en points, puis mise a l'echelle. Sur un
+    // appareil tactile on grossit un peu : une cible de moins de 9 mm se rate
+    // systematiquement au doigt. Trop grossir est cependant contre-productif —
+    // il reste alors si peu de points en largeur que fenetres et bandeaux
+    // couvrent l'ecran.
+    this.uiScale = dpr * (this.input.coarse ? 1.15 : 1);
+
+    this.touch.layout(this.canvas.width / this.uiScale, this.canvas.height / this.uiScale);
+    // Les commandes occupent le bas de l'ecran : le journal et les dialogues
+    // doivent leur laisser la place.
+    this.ui.bottomInset = this.touch.enabled ? Math.min(cssHeight * 0.22, 120) : 0;
   }
 
   private get usecodeContext(): UsecodeContext {
@@ -84,15 +130,20 @@ class Game {
     };
   }
 
+  /** Convertit des pixels de rendu vers l'espace de l'interface. */
+  private toUi(value: number): number {
+    return value / this.uiScale;
+  }
+
   // --- Simulation ---------------------------------------------------------
 
   update(dt: number): void {
     this.clock.advance(dt);
-    this.ui.setMouse(this.input.mouseX, this.input.mouseY);
+    this.ui.setMouse(this.toUi(this.input.mouseX), this.toUi(this.input.mouseY));
 
     this.handleKeys();
-    this.handleClicks();
-    this.handleDragging();
+    this.handlePointers();
+    this.handleTouchButtons();
     this.moveAvatar(dt);
 
     for (const actor of this.world.actors) {
@@ -102,21 +153,35 @@ class Game {
 
     this.renderer.camera.follow(this.avatar.px, this.avatar.py, dt);
     this.input.endFrame();
+    this.touch.endFrame();
   }
 
   private handleKeys(): void {
     for (const code of this.input.pressed) {
-      if (code === 'KeyI') {
-        this.ui.openContainer(this.avatar, 'Sac de l\'Avatar');
-      } else if (code === 'Escape') {
-        this.ui.closeTop();
-      }
+      if (code === 'KeyI') this.openBag();
+      else if (code === 'Escape') this.ui.closeTop();
+      else if (code === 'KeyE' || code === 'Space') this.actNearby();
     }
   }
 
-  /** Deplacement clavier : prioritaire sur le chemin calcule au clic. */
+  private openBag(): void {
+    this.ui.openContainer(this.avatar, 'Sac de l\'Avatar');
+  }
+
+  private handleTouchButtons(): void {
+    for (const action of this.touch.triggered) {
+      if (action === 'bag') this.openBag();
+      else if (action === 'close') this.ui.closeTop();
+      else if (action === 'act') this.actNearby();
+    }
+  }
+
+  /** Deplacement : stick virtuel ou clavier, prioritaires sur le chemin calcule. */
   private moveAvatar(dt: number): void {
-    const { dx, dy } = this.input.moveVector();
+    const keyboard = this.input.moveVector();
+    const stick = this.touch.vector();
+    const dx = keyboard.dx || stick.dx;
+    const dy = keyboard.dy || stick.dy;
 
     if (dx !== 0 || dy !== 0) {
       this.avatar.path.length = 0;
@@ -137,50 +202,68 @@ class Game {
 
   // --- Interaction --------------------------------------------------------
 
-  private handleClicks(): void {
-    for (const click of this.input.clicks) {
-      const hit = this.ui.hitTest(click.x, click.y);
+  /**
+   * Routage des appuis : commandes tactiles, puis interface, puis monde.
+   * L'ordre compte — un appui sur le stick ne doit jamais faire marcher
+   * l'Avatar vers la tuile qui se trouve dessous.
+   */
+  private handlePointers(): void {
+    for (const down of this.input.downs) {
+      const ux = this.toUi(down.x);
+      const uy = this.toUi(down.y);
 
-      switch (hit.kind) {
-        case 'close':
-          this.ui.closeWindow(hit.window);
-          continue;
-        case 'title':
-          this.ui.bringToFront(hit.window);
-          this.dragging = {
-            window: hit.window,
-            dx: click.x - hit.window.x,
-            dy: click.y - hit.window.y,
-          };
-          continue;
-        case 'slot':
-          this.handleSlotClick(hit.window, hit.item);
-          continue;
-        case 'topic':
-          this.selectTopic(hit.topic.id);
-          continue;
-        default:
-          break;
-      }
+      if (this.touch.onDown(down.id, ux, uy)) continue;
+      if (this.handleUiPointer(down, ux, uy)) continue;
 
-      // Le clic porte sur le monde.
-      const { tx, ty } = this.renderer.camera.screenToWorld(click.x, click.y);
-      if (click.double) this.useAt(tx, ty);
+      const { tx, ty } = this.renderer.camera.screenToWorld(down.x, down.y);
+      if (down.double) this.useAt(tx, ty);
       else this.clickWorld(tx, ty);
     }
-  }
 
-  private handleDragging(): void {
-    if (!this.dragging) return;
-    if (!this.input.mouseDown) {
-      this.dragging = null;
-      return;
+    for (const move of this.input.moves) {
+      const ux = this.toUi(move.x);
+      const uy = this.toUi(move.y);
+      this.touch.onMove(move.id, ux, uy);
+      if (this.dragging?.pointer === move.id) {
+        this.dragging.window.x = ux - this.dragging.dx;
+        this.dragging.window.y = uy - this.dragging.dy;
+      }
     }
-    this.dragging.window.x = this.input.mouseX - this.dragging.dx;
-    this.dragging.window.y = this.input.mouseY - this.dragging.dy;
+
+    for (const id of this.input.ups) {
+      this.touch.onUp(id);
+      if (this.dragging?.pointer === id) this.dragging = null;
+    }
   }
 
-  /** Clic simple sur le monde : reposer, ramasser, ou marcher. */
+  /** Retourne true si l'appui a ete consomme par l'interface. */
+  private handleUiPointer(down: PointerDown, ux: number, uy: number): boolean {
+    const hit = this.ui.hitTest(ux, uy);
+    switch (hit.kind) {
+      case 'close':
+        this.ui.closeWindow(hit.window);
+        return true;
+      case 'title':
+        this.ui.bringToFront(hit.window);
+        this.dragging = {
+          window: hit.window,
+          pointer: down.id,
+          dx: ux - hit.window.x,
+          dy: uy - hit.window.y,
+        };
+        return true;
+      case 'slot':
+        this.handleSlotClick(hit.window, hit.item);
+        return true;
+      case 'topic':
+        this.selectTopic(hit.topic.id);
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Appui simple sur le monde : reposer, ramasser, ou marcher. */
   private clickWorld(tx: number, ty: number): void {
     if (this.ui.held) {
       this.dropHeld(tx, ty);
@@ -188,7 +271,7 @@ class Game {
     }
 
     const item = this.topTakeableAt(tx, ty);
-    if (item && this.withinReach(tx, ty)) {
+    if (item && this.canInteract(tx, ty)) {
       this.world.removeObject(item);
       this.ui.held = item;
       this.ui.addLog(`Vous prenez : ${item.describe()}.`);
@@ -209,10 +292,14 @@ class Game {
     this.avatar.path = path;
   }
 
-  /** Double-clic : utiliser l'objet ou aborder le personnage. */
+  /** Double appui : utiliser l'objet ou aborder le personnage. */
   private useAt(tx: number, ty: number): void {
     if (!this.withinReach(tx, ty)) {
       this.ui.addLog('C\'est hors de portee.');
+      return;
+    }
+    if (!this.canInteract(tx, ty)) {
+      this.ui.addLog('Quelque chose vous en separe.');
       return;
     }
 
@@ -234,9 +321,77 @@ class Game {
     this.ui.addLog('Rien a faire ici.');
   }
 
+  /**
+   * Agit sur l'element interactif le plus proche.
+   *
+   * C'est l'equivalent au doigt du double-clic : viser une porte de quelques
+   * millimetres sur un telephone est penible, alors qu'il n'y a presque jamais
+   * d'ambiguite sur ce que le joueur veut faire quand il est a cote.
+   */
+  private actNearby(): void {
+    const ax = Math.round(this.avatar.px);
+    const ay = Math.round(this.avatar.py);
+
+    let bestNpc: Actor | null = null;
+    let bestNpcDist = Infinity;
+    for (const actor of this.world.actors) {
+      if (actor === this.avatar || !actor.isAlive || !actor.conversationId) continue;
+      const d = Math.max(Math.abs(actor.px - ax), Math.abs(actor.py - ay));
+      if (d > INTERACT_RANGE || d >= bestNpcDist) continue;
+      if (!this.canInteract(Math.round(actor.px), Math.round(actor.py))) continue;
+      bestNpc = actor;
+      bestNpcDist = d;
+    }
+    if (bestNpc) {
+      this.startConversation(bestNpc);
+      return;
+    }
+
+    // Les tuiles sont parcourues du plus proche au plus lointain.
+    const offsets: Array<[number, number]> = [];
+    for (let dy = -INTERACT_RANGE; dy <= INTERACT_RANGE; dy++) {
+      for (let dx = -INTERACT_RANGE; dx <= INTERACT_RANGE; dx++) offsets.push([dx, dy]);
+    }
+    offsets.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]));
+
+    for (const [dx, dy] of offsets) {
+      const tx = ax + dx;
+      const ty = ay + dy;
+      if (!this.world.inBounds(tx, ty)) continue;
+      if (!this.canInteract(tx, ty)) continue;
+      const objects = this.world
+        .objectsAt(tx, ty)
+        .filter((o) => !o.shape.roof)
+        .sort((a, b) => b.tz - a.tz);
+      for (const obj of objects) {
+        const shape = obj.shape;
+        // On ne declenche que ce qui a un effet visible : inutile de « manger »
+        // le plancher parce qu'il etait la premiere tuile balayee.
+        if (!shape.door && !shape.container && !shape.takeable && shape.id !== 'anvil') continue;
+        if (use(obj, this.usecodeContext)) return;
+      }
+    }
+    this.ui.addLog('Rien a portee.');
+  }
+
   private withinReach(tx: number, ty: number): boolean {
     return (
       Math.max(Math.abs(tx - this.avatar.px), Math.abs(ty - this.avatar.py)) <= INTERACT_RANGE
+    );
+  }
+
+  /**
+   * A portee **et** visible. Sans le second critere on fouille les coffres a
+   * travers les murs et on engage la conversation avec quelqu'un enferme dans
+   * la piece d'a cote — ce qui arrive constamment, les batiments etant petits.
+   */
+  private canInteract(tx: number, ty: number): boolean {
+    if (!this.withinReach(tx, ty)) return false;
+    return this.world.hasLineOfSight(
+      Math.round(this.avatar.px),
+      Math.round(this.avatar.py),
+      tx,
+      ty,
     );
   }
 
@@ -261,7 +416,7 @@ class Game {
     this.ui.held = null;
   }
 
-  /** Clic dans une fenetre : prendre, deposer, ou empiler. */
+  /** Appui dans une fenetre : prendre, deposer, ou empiler. */
   private handleSlotClick(window: ContainerWindow, item: GameObject | null): void {
     const held = this.ui.held;
 
@@ -344,13 +499,25 @@ class Game {
   render(): void {
     const ctx = this.canvas.getContext('2d')!;
     this.renderer.render(this.world, this.avatar, this.clock, this.canvas.width, this.canvas.height);
-    this.ui.render(ctx, this.avatar, this.clock, this.canvas.width, this.canvas.height);
+
+    ctx.setTransform(this.uiScale, 0, 0, this.uiScale, 0, 0);
+    this.ui.render(
+      ctx,
+      this.avatar,
+      this.clock,
+      this.canvas.width / this.uiScale,
+      this.canvas.height / this.uiScale,
+    );
+    this.touch.render(ctx);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
     this.drawCursorHint(ctx);
   }
 
-  /** Surligne la tuile visee, comme le curseur contextuel du jeu d'origine. */
+  /** Surligne la tuile visee. Sans survol, un curseur n'a pas de sens. */
   private drawCursorHint(ctx: CanvasRenderingContext2D): void {
-    if (this.ui.isOverUi(this.input.mouseX, this.input.mouseY)) return;
+    if (this.input.coarse) return;
+    if (this.ui.isOverUi(this.toUi(this.input.mouseX), this.toUi(this.input.mouseY))) return;
     const { tx, ty } = this.renderer.camera.screenToWorld(this.input.mouseX, this.input.mouseY);
     if (!this.world.inBounds(tx, ty)) return;
 

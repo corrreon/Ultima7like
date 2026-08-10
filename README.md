@@ -7,11 +7,19 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 37 tests
+npm test         # 40 tests
 ```
 
-Déplacement : flèches / ZQSD ou clic. Double-clic : ouvrir une porte, fouiller
-un coffre, manger, parler. `I` : sac. `Échap` : fermer.
+Une version jouable est publiée automatiquement à chaque poussée sur `main` :
+**https://corrreon.github.io/Ultima7like/**
+
+| | Ordinateur | Mobile |
+|---|---|---|
+| Marcher | flèches / ZQSD, ou clic | stick virtuel, ou toucher |
+| Utiliser, parler | double-clic, ou `E` | bouton **Agir**, ou double-tap |
+| Prendre / poser | clic sur l'objet | toucher l'objet |
+| Sac | `I` | bouton **Sac** |
+| Fermer | `Échap` | bouton **Fermer** |
 
 ---
 
@@ -127,6 +135,19 @@ d'arrivée plutôt qu'une exception sur la case cible — sinon l'invariant « u
 chemin ne pose jamais le pied sur une case bloquée » saute, et l'Avatar traverse
 les murs au clic.
 
+**« À portée » ne suffit pas, il faut « visible ».** Sans ligne de vue, on
+fouille les coffres à travers les murs et on engage la conversation avec
+quelqu'un enfermé dans la pièce d'à côté. Le piège est que voir et marcher
+n'obéissent pas aux mêmes règles : on voit par-dessus une table, on voit
+au-delà d'un étang, mais pas à travers une porte close. Deux notions distinctes,
+donc, et non un seul drapeau « solide ».
+
+**L'interface mobile n'est pas l'interface de bureau mise à l'échelle.** Un
+bandeau de 200 points occupe un cinquième d'un écran d'ordinateur et les deux
+tiers d'un téléphone. Grossir l'interface pour le doigt réduit d'autant le
+nombre de points disponibles : au-delà d'un certain facteur, les fenêtres
+couvrent l'écran. Il faut des largeurs calculées, pas fixes.
+
 ## 5. Ce que contient le prototype
 
 Un bourg, Valmoret : quatre bâtiments, des routes, un étang, et quatre
@@ -143,6 +164,10 @@ habitants qui vivent leur journée.
   débloque un sujet chez Basile.
 - **Jour/nuit** — lumière ambiante interpolée, réverbères qui s'allument au
   crépuscule, torche transportable.
+- **Mobile** — stick virtuel, bouton *Agir* qui vise l'élément interactif le
+  plus proche, interface dont les tailles s'adaptent à la densité d'écran et
+  au format ; le zoom montre moins de tuiles sur un téléphone que sur un
+  ordinateur, sinon les sprites deviennent des confettis.
 
 Une poignée de débogage est exposée dans la console : `u7.clock.advance(600)`
 avance de dix heures, `u7.world` et `u7.avatar` donnent accès à la simulation.
@@ -165,10 +190,11 @@ src/objects/  GameObject (poids, volume, conteneurs) et Actor
 src/sim/      pathfinding A*, emplois du temps, IA
 src/script/   usecode (comportements) et dialogues
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
-src/input/    clavier et souris
+src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues
-tests/        37 tests sur la logique pure
+tests/        40 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
+.github/      vérification et publication automatiques
 ```
 
 Détail des choix techniques : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

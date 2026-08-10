@@ -153,6 +153,52 @@ La file de priorité est un tableau balayé linéairement. C'est suffisant à
 l'échelle d'un bourg ; à l'échelle d'une carte d'Ultima VII il faudrait un tas
 binaire, et probablement un graphe de navigation hiérarchique.
 
+### Franchissable et visible
+
+Deux notions voisines qu'il ne faut surtout pas confondre :
+
+- `isBlocked` répond « puis-je marcher ici ? ». L'eau et les tables bloquent.
+- `isOpaque` répond « puis-je voir à travers ? ». Le critère est la hauteur :
+  seuls les objets solides d'au moins 3 niveaux (murs, portes closes, arbres)
+  arrêtent le regard. On voit par-dessus une table, et au-delà d'un étang.
+
+`hasLineOfSight` parcourt la droite entre deux tuiles, **extrémités exclues** :
+il faut pouvoir ouvrir la porte devant laquelle on se tient, alors qu'elle est
+elle-même opaque. Sans ce mécanisme, on fouille les coffres à travers les murs
+— ce qui arrive en permanence, les bâtiments étant petits.
+
+## Entrées et interface tactile
+
+Tout passe par les Pointer Events : souris, doigt et stylet empruntent le même
+chemin. Les évènements sont mis en file et consommés une fois par frame, et la
+boucle de jeu décide qui les reçoit — **les commandes tactiles d'abord, les
+fenêtres ensuite, le monde en dernier**. Cet ordre n'est pas négociable : un
+appui sur le stick virtuel ne doit jamais faire marcher l'Avatar vers la tuile
+qui se trouve dessous.
+
+Trois échelles cohabitent, et les mélanger est la source d'erreur principale :
+
+| Espace | Unité | Qui l'utilise |
+|---|---|---|
+| Pixels CSS | ce que voit le navigateur | rien, sinon la mise en page |
+| Pixels de rendu | pixels du canvas | caméra, monde, lumière |
+| Points d'interface | rendu ÷ `uiScale` | fenêtres, journal, commandes |
+
+`uiScale` vaut la densité d'écran, majorée de 15 % sur appareil tactile : une
+cible de moins de 9 mm se rate systématiquement au doigt. Majorer davantage est
+contre-productif — il reste alors si peu de points en largeur que les fenêtres
+couvrent l'écran.
+
+Le zoom de la caméra, lui, est choisi pour montrer un nombre de tuiles donné
+(13 sur téléphone, 24 sur ordinateur) et reste entier pour garder le pixel art
+net.
+
+Le bouton **Agir** mérite un mot : il applique l'action à l'élément interactif
+le plus proche, personnages d'abord, puis objets par distance croissante, en
+filtrant sur la ligne de vue. C'est l'équivalent au doigt du double-clic, qui
+demande une précision que le doigt n'a pas — et il n'y a presque jamais
+d'ambiguïté sur ce que le joueur veut faire quand il est à côté.
+
 ## Scripts
 
 ### Usecode

@@ -2,10 +2,28 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- viewport-fit=cover : occupe l'ecran jusque sous l'encoche.
+         user-scalable=no : un double-tap de jeu ne doit pas zoomer la page. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b0a08" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="description"
+      content="Prototype de moteur de RPG monde-simulation inspire d'Ultima VII."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%233f6b33'/><rect x='5' y='3' width='6' height='4' fill='%23d9a87c'/><rect x='5' y='7' width='6' height='6' fill='%232f5b8f'/></svg>"
+    />
     <title>Ultima7like — prototype de moteur</title>
     <style>
-      html, body {
+      html,
+      body {
         margin: 0;
         padding: 0;
         height: 100%;
@@ -13,31 +31,56 @@
         color: #d8c9a3;
         font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
         overflow: hidden;
+        /* Empeche le defilement elastique et le zoom par pincement : le canvas
+           recoit tous les gestes. */
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
       }
-      #app { position: fixed; inset: 0; display: block; }
+      #app {
+        position: fixed;
+        inset: 0;
+        display: block;
+      }
       canvas {
         display: block;
         width: 100%;
         height: 100%;
         image-rendering: pixelated;
-        cursor: crosshair;
+        touch-action: none;
       }
       #hint {
         position: fixed;
-        left: 12px;
-        bottom: 10px;
+        left: max(12px, env(safe-area-inset-left));
+        bottom: max(10px, env(safe-area-inset-bottom));
         font-size: 12px;
         line-height: 1.5;
         opacity: 0.55;
         pointer-events: none;
         text-shadow: 0 1px 2px #000;
       }
+      /* Sur un appareil tactile, les commandes a l'ecran remplacent ce rappel. */
+      @media (pointer: coarse) {
+        #hint {
+          display: none;
+        }
+      }
+      canvas {
+        cursor: crosshair;
+      }
+      @media (pointer: coarse) {
+        canvas {
+          cursor: default;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="hint">
-      Deplacement&nbsp;: fleches / ZQSD ou clic &nbsp;·&nbsp; Interagir&nbsp;: double-clic
+      Deplacement&nbsp;: fleches / ZQSD ou clic &nbsp;·&nbsp; Interagir&nbsp;: double-clic ou E
       &nbsp;·&nbsp; Sac&nbsp;: I &nbsp;·&nbsp; Fermer&nbsp;: Echap
     </div>
     <script type="module" src="/src/main.ts"></script>

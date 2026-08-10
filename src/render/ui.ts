@@ -41,6 +41,12 @@ export class Ui {
   readonly windows: ContainerWindow[] = [];
   /** Objet actuellement « en main », suivant le curseur. */
   held: GameObject | null = null;
+  /**
+   * Hauteur reservee en bas de l'ecran par les commandes tactiles. Le journal
+   * et le panneau de dialogue remontent d'autant, sinon le stick virtuel se
+   * superpose exactement au texte.
+   */
+  bottomInset = 0;
   conversation: { npc: Actor; state: ConversationState; reply: string } | null = null;
 
   private readonly log: string[] = [];
@@ -101,50 +107,97 @@ export class Ui {
 
   // --- Rendu --------------------------------------------------------------
 
+  /**
+   * Dessine l'interface. `width` et `height` sont exprimes dans l'espace de
+   * l'interface, pas en pixels de rendu : c'est l'appelant qui applique le
+   * facteur d'echelle au contexte, de facon que les memes tailles en points
+   * donnent une interface lisible aussi bien sur un ecran haute densite que
+   * sur un telephone.
+   */
   render(ctx: CanvasRenderingContext2D, avatar: Actor, clock: GameClock, width: number, height: number): void {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.font = '12px ui-monospace, monospace';
     ctx.textBaseline = 'alphabetic';
 
     this.drawStatus(ctx, avatar, clock, width);
-    this.drawLog(ctx, height);
-    for (const window of this.windows) this.drawWindow(ctx, window);
+    this.drawLog(ctx, width, height);
+    for (const window of this.windows) this.drawWindow(ctx, window, width, height);
     if (this.conversation) this.drawConversation(ctx, width, height);
     if (this.held) this.drawHeld(ctx);
   }
 
+  /**
+   * Bandeau d'etat. Sa largeur suit le texte plutot qu'une valeur fixe : un
+   * encart de 202 points occupe un cinquieme d'un ecran de bureau mais les
+   * deux tiers d'un telephone.
+   */
   private drawStatus(ctx: CanvasRenderingContext2D, avatar: Actor, clock: GameClock, width: number): void {
-    const text = clock.format();
-    const weight = `${(avatar.carriedWeight / 10).toFixed(1)} stones`;
+    const narrow = width < 460;
+    const time = clock.format();
+    const weight = narrow
+      ? `${(avatar.carriedWeight / 10).toFixed(1)} st`
+      : `Charge : ${(avatar.carriedWeight / 10).toFixed(1)} stones`;
+
+    ctx.font = `${narrow ? 10 : 12}px ui-monospace, monospace`;
+    const lineHeight = narrow ? 13 : 16;
+    const boxW = Math.min(
+      Math.max(ctx.measureText(time).width, ctx.measureText(weight).width) + 20,
+      width - 16,
+    );
+    const boxH = lineHeight * 2 + 12;
+    const x = width - boxW - 8;
+
     ctx.fillStyle = 'rgba(12, 10, 8, 0.72)';
-    ctx.fillRect(width - 210, 8, 202, 42);
+    ctx.fillRect(x, 8, boxW, boxH);
     ctx.strokeStyle = '#5c4a2c';
-    ctx.strokeRect(width - 210.5, 8.5, 201, 41);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, 8.5, boxW - 1, boxH - 1);
+
     ctx.fillStyle = '#e8dcc0';
-    ctx.fillText(text, width - 200, 26);
+    ctx.fillText(time, x + 10, 8 + lineHeight);
     ctx.fillStyle = avatar.isOverloaded ? '#d66655' : '#a89974';
-    ctx.fillText(`Charge : ${weight}`, width - 200, 42);
+    ctx.fillText(weight, x + 10, 8 + lineHeight * 2);
+    ctx.font = '12px ui-monospace, monospace';
   }
 
-  private drawLog(ctx: CanvasRenderingContext2D, height: number): void {
-    ctx.fillStyle = '#cbbb92';
-    let y = height - 84;
-    for (const line of this.log) {
+  /** Journal, replie sur la largeur disponible pour ne jamais deborder. */
+  private drawLog(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const narrow = width < 460;
+    ctx.font = `${narrow ? 10 : 12}px ui-monospace, monospace`;
+    const lineHeight = narrow ? 13 : 16;
+    const maxWidth = width - 28;
+
+    const lines: string[] = [];
+    for (const entry of this.log.slice(narrow ? -3 : -5)) {
+      lines.push(...wrap(ctx, entry, maxWidth));
+    }
+
+    let y = height - lineHeight * lines.length - 24 - this.bottomInset;
+    for (const line of lines) {
       ctx.fillStyle = 'rgba(12, 10, 8, 0.6)';
-      const w = ctx.measureText(line).width + 12;
-      ctx.fillRect(8, y - 12, w, 16);
+      ctx.fillRect(8, y - lineHeight + 4, ctx.measureText(line).width + 12, lineHeight);
       ctx.fillStyle = '#cbbb92';
       ctx.fillText(line, 14, y);
-      y += 16;
+      y += lineHeight;
     }
+    ctx.font = '12px ui-monospace, monospace';
   }
 
-  private drawWindow(ctx: CanvasRenderingContext2D, window: ContainerWindow): void {
+  private drawWindow(
+    ctx: CanvasRenderingContext2D,
+    window: ContainerWindow,
+    viewWidth: number,
+    viewHeight: number,
+  ): void {
     const items = window.owner.contents;
     const rows = Math.max(2, Math.ceil((items.length + 1) / COLUMNS));
     window.width = COLUMNS * SLOT + PADDING * 2;
     window.height = TITLE_H + rows * SLOT + PADDING * 2;
+
+    // Une fenetre ne doit jamais sortir de l'ecran : sur telephone, ou en
+    // reduisant la fenetre du navigateur, elle deviendrait inatteignable.
+    window.x = Math.max(4, Math.min(window.x, viewWidth - window.width - 4));
+    window.y = Math.max(4, Math.min(window.y, viewHeight - window.height - 4));
 
     ctx.fillStyle = 'rgba(28, 22, 16, 0.94)';
     ctx.fillRect(window.x, window.y, window.width, window.height);
@@ -211,7 +264,7 @@ export class Ui {
   private drawConversation(ctx: CanvasRenderingContext2D, width: number, height: number): void {
     const conv = this.conversation!;
     const panelH = 168;
-    const y = height - panelH - 8;
+    const y = height - panelH - 8 - this.bottomInset;
     const x = 24;
     const w = Math.min(width - 48, 620);
 

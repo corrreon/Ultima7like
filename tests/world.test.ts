@@ -57,6 +57,50 @@ describe('monde et chunks', () => {
     expect(world.isBlocked(-1, 0)).toBe(true);
   });
 
+  it('distingue ce qui arrete les pas de ce qui arrete le regard', () => {
+    const world = new World(32, 32);
+    world.setTerrain(5, 5, 'water');
+    world.addObject(new GameObject({ shape: 'table', tx: 8, ty: 8 })); // hauteur 2
+    world.addObject(new GameObject({ shape: 'wall', tx: 11, ty: 11 })); // hauteur 5
+
+    // L'eau et la table bloquent le passage ou pas, mais laissent voir.
+    expect(world.isBlocked(5, 5)).toBe(true);
+    expect(world.isOpaque(5, 5)).toBe(false);
+    expect(world.isBlocked(8, 8)).toBe(true);
+    expect(world.isOpaque(8, 8)).toBe(false);
+    // Le mur arrete les deux.
+    expect(world.isOpaque(11, 11)).toBe(true);
+  });
+
+  it('coupe la ligne de vue derriere un mur, pas derriere une table', () => {
+    const world = new World(32, 32);
+    for (let y = 0; y < 32; y++) {
+      if (y === 5) continue;
+      world.addObject(new GameObject({ shape: 'wall', tx: 10, ty: y }));
+    }
+    const door = new GameObject({ shape: 'door', tx: 10, ty: 5 });
+    world.addObject(door);
+
+    // A travers le mur : rien.
+    expect(world.hasLineOfSight(8, 8, 12, 8)).toBe(false);
+    // A travers une porte fermee : rien non plus.
+    expect(world.hasLineOfSight(8, 5, 12, 5)).toBe(false);
+    // Porte ouverte : on voit.
+    door.frame = 1;
+    expect(world.hasLineOfSight(8, 5, 12, 5)).toBe(true);
+  });
+
+  it('n\'exclut pas les extremites de la ligne de vue', () => {
+    const world = new World(32, 32);
+    // On doit pouvoir agir sur la porte devant laquelle on se tient, bien
+    // qu'elle soit elle-meme opaque.
+    world.addObject(new GameObject({ shape: 'door', tx: 4, ty: 4 }));
+    expect(world.hasLineOfSight(4, 5, 4, 4)).toBe(true);
+    expect(world.hasLineOfSight(4, 6, 4, 4)).toBe(true);
+    // Mais pas sur ce qui se trouve juste derriere.
+    expect(world.hasLineOfSight(4, 5, 4, 3)).toBe(false);
+  });
+
   it('libere le passage quand la porte s\'ouvre', () => {
     const world = new World(32, 32);
     const door = new GameObject({ shape: 'door', tx: 4, ty: 4 });

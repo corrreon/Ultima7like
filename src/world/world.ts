@@ -210,6 +210,50 @@ export class World {
     return true;
   }
 
+  /**
+   * L'objet bloque-t-il la vue ?
+   *
+   * A distinguer soigneusement du blocage du deplacement : on voit par-dessus
+   * une table ou un coffre, on ne voit pas a travers un mur, et l'eau arrete
+   * les pas sans arreter le regard. D'ou le critere sur la hauteur plutot que
+   * sur le seul drapeau `solid`.
+   */
+  blocksSight(obj: GameObject): boolean {
+    const shape = obj.shape;
+    if (!shape.solid || shape.height < 3) return false;
+    if (shape.door && obj.frame === 1) return false; // porte ouverte
+    return true;
+  }
+
+  isOpaque(tx: number, ty: number): boolean {
+    for (const obj of this.objectsAt(tx, ty)) {
+      if (this.blocksSight(obj)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Y a-t-il une ligne de vue degagee entre deux tuiles ?
+   *
+   * Les deux extremites sont exclues : on doit pouvoir ouvrir la porte devant
+   * laquelle on se tient, alors qu'elle est elle-meme opaque.
+   */
+  hasLineOfSight(x0: number, y0: number, x1: number, y1: number): boolean {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy));
+    if (steps <= 1) return true;
+
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const tx = Math.round(x0 + dx * t);
+      const ty = Math.round(y0 + dy * t);
+      if ((tx === x0 && ty === y0) || (tx === x1 && ty === y1)) continue;
+      if (this.isOpaque(tx, ty)) return false;
+    }
+    return true;
+  }
+
   /** Porte fermee presente sur la tuile, s'il y en a une. */
   closedDoorAt(tx: number, ty: number): GameObject | null {
     for (const obj of this.objectsAt(tx, ty)) {
