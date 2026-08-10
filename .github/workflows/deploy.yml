@@ -2,8 +2,15 @@
 #
 # Le prototype est entierement statique (aucun serveur, aucun asset externe) :
 # le `dist/` produit par Vite se deploie tel quel. `base: './'` est fixe dans
-# vite.config.ts, ce qui rend le build independant du sous-chemin d'URL —
-# indispensable puisque Pages sert le site depuis /Ultima7like/.
+# vite.config.ts, ce qui rend le build independant du sous-chemin d'URL. C'est
+# pour cette raison qu'on n'utilise pas `actions/configure-pages` : son seul
+# interet serait de fournir l'URL de base, et son option `enablement` echoue de
+# toute facon — creer un site Pages demande des droits d'administration que le
+# jeton d'Actions n'a pas. Pages doit etre active une fois a la main, dans
+# Settings > Pages > Source : GitHub Actions.
+#
+# Les deux travaux sont separes a dessein : la verification du code reste verte
+# meme si la publication echoue pour une raison de configuration du depot.
 
 name: Verification et publication
 
@@ -33,7 +40,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - run: npm ci
@@ -46,13 +53,6 @@ jobs:
 
       - name: Build
         run: npx vite build
-
-      - name: Preparer GitHub Pages
-        if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v5
-        with:
-          # Active Pages automatiquement si ce n'est pas deja fait.
-          enablement: true
 
       - name: Televerser le site
         if: github.event_name != 'pull_request'
