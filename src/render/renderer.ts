@@ -4,7 +4,7 @@ import type { Actor } from '../objects/actor';
 import type { GameObject } from '../objects/gameobject';
 import type { World } from '../world/world';
 import { transitionsAt } from '../world/terrain';
-import { getSprite, getTransition, type Sprite } from './art';
+import { getKerb, getSprite, getTransition, type Sprite } from './art';
 import { Camera } from './camera';
 import { Lighting, type LightSource } from './lighting';
 import { SHADOW } from './palette';
@@ -16,6 +16,14 @@ interface Drawable {
   depth: number;
   tie: number;
 }
+
+/** Cotes testes pour poser une bordure de trottoir. */
+const KERB_SIDES: Array<['n' | 'e' | 's' | 'w', number, number]> = [
+  ['n', 0, -1],
+  ['e', 1, 0],
+  ['s', 0, 1],
+  ['w', -1, 0],
+];
 
 interface TileRect {
   x0: number;
@@ -117,6 +125,17 @@ export class Renderer {
         for (const transition of transitionsAt(world, tx, ty)) {
           const sprite = getTransition(transition.terrain, transition.dir);
           if (sprite) ctx.drawImage(sprite.canvas, dx, dy);
+        }
+
+        // Bordure de trottoir sur le pourtour des surfaces pavees. Sans elle,
+        // une place n'est qu'une tache de texture differente au milieu de
+        // l'herbe ; avec elle, elle se lit comme un ouvrage delimite.
+        if (id === 'stone') {
+          for (const [dir, ox, oy] of KERB_SIDES) {
+            if (world.terrainAt(tx + ox, ty + oy) === 'stone') continue;
+            const kerb = getKerb(dir);
+            if (kerb) ctx.drawImage(kerb.canvas, dx, dy);
+          }
         }
       }
     }

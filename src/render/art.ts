@@ -286,6 +286,76 @@ function edgeAlpha(dir: TransitionDir, x: number, y: number): number {
   }
 }
 
+/**
+ * Bordure de trottoir, posee sur le bord d'une surface pavee.
+ *
+ * Sur les captures d'Ultima VII, une rue pavee est cernee d'un rang de pierres
+ * de taille plus claires. C'est ce qui la fait lire comme un ouvrage : sans
+ * bordure, une zone pavee n'est qu'une tache de texture differente au milieu
+ * de l'herbe.
+ *
+ * `dir` designe le cote exterieur, celui qui touche autre chose que du pave.
+ */
+function kerbSprite(dir: 'n' | 'e' | 's' | 'w'): Sprite {
+  const W = 4; // largeur du rang de bordure
+  return makeSprite(T, T, (ctx) => {
+    ctx.clearRect(0, 0, T, T);
+    const horizontal = dir === 'n' || dir === 's';
+    const x = dir === 'e' ? T - W : 0;
+    const y = dir === 's' ? T - W : 0;
+    const w = horizontal ? T : W;
+    const h = horizontal ? W : T;
+
+    noiseFill2(ctx, x, y, w, h, [tone('stone', 3), tone('stone', 4)], [2, 3], dir.charCodeAt(0));
+
+    // Arete eclairee du cote de la lumiere, ombre a l'oppose.
+    if (dir === 'n') {
+      px(ctx, 0, 0, T, 1, tone('stone', 4));
+      px(ctx, 0, W - 1, T, 1, tone('stone', 1));
+    } else if (dir === 's') {
+      px(ctx, 0, T - W, T, 1, tone('stone', 4));
+      px(ctx, 0, T - 1, T, 1, tone('stone', 1));
+    } else if (dir === 'w') {
+      px(ctx, 0, 0, 1, T, tone('stone', 4));
+      px(ctx, W - 1, 0, 1, T, tone('stone', 1));
+    } else {
+      px(ctx, T - W, 0, 1, T, tone('stone', 4));
+      px(ctx, T - 1, 0, 1, T, tone('stone', 1));
+    }
+
+    // Joints entre pierres de taille.
+    for (let i = 5; i < T; i += 6) {
+      if (horizontal) px(ctx, i, y, 1, W, tone('stone', 2));
+      else px(ctx, x, i, W, 1, tone('stone', 2));
+    }
+  });
+}
+
+/** Variante de `noiseFill` limitee a un rectangle. */
+function noiseFill2(
+  ctx: Ctx2D,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  colors: string[],
+  weights: number[],
+  seed: number,
+): void {
+  const total = weights.reduce((a, b) => a + b, 0);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let pick = hashNoise(Math.floor((x0 + x) / 2), Math.floor((y0 + y) / 2), seed) * total;
+      let index = 0;
+      while (index < weights.length - 1 && pick > weights[index]!) {
+        pick -= weights[index]!;
+        index++;
+      }
+      px(ctx, x0 + x, y0 + y, 1, 1, colors[index] ?? colors[0]!);
+    }
+  }
+}
+
 /** Construit le liseré d'un terrain pour une direction. */
 function transitionSprite(source: Sprite, dir: TransitionDir): Sprite {
   return makeSprite(T, T, (ctx) => {
@@ -304,14 +374,24 @@ function transitionSprite(source: Sprite, dir: TransitionDir): Sprite {
  * torchis tramés, poutres verticales, et une ombre franche a droite qui
  * indique d'ou vient la lumiere.
  */
+/**
+ * Mur a colombages, avec **couronnement visible**.
+ *
+ * C'est le detail qui manquait le plus. Sur les captures d'Ultima VII, on voit
+ * la tranche superieure du mur — une bande de pierre eclairee, vue de dessus —
+ * puis la face en dessous. Un mur reduit a un panneau vertical se lit comme un
+ * decor de theatre ; la couronne lui donne une epaisseur, et le batiment
+ * devient un volume.
+ *
+ * La couronne est prise **dans** la hauteur du sprite plutot qu'ajoutee : un
+ * mur plus haut depasserait du toit, qui est cale sur la geometrie existante.
+ */
 function wallSprite(variant: number): Sprite {
   const h = T * 2;
+  const CAP = 7; // epaisseur apparente du mur, vue de dessus
   return makeSprite(T, h, (ctx) => {
-    ditherGradientV(ctx, 0, 0, T, h, tone('plaster', 2), tone('plaster', 3), 0.85, 0.15);
-
-    // Sabliere : la tranche superieure attrape la lumiere.
-    px(ctx, 0, 0, T, 2, tone('wood', 3));
-    px(ctx, 0, 0, T, 1, tone('wood', 4));
+    // --- Face du mur, sous le couronnement.
+    ditherGradientV(ctx, 0, CAP, T, h - CAP, tone('plaster', 2), tone('plaster', 3), 0.85, 0.15);
 
     // Colombages : un seul poteau par tuile, sur le bord gauche.
     //
@@ -319,29 +399,37 @@ function wallSprite(variant: number): Sprite {
     // tuiles voisines produisent alors des poteaux jumeles et la facade se lit
     // comme une palissade. Un poteau par tuile donne un rythme regulier, donc
     // un mur continu.
-    px(ctx, 0, 2, 2, h - 2, tone('wood', 2));
-    px(ctx, 0, 2, 1, h - 2, tone('wood', 3));
-    px(ctx, T - 1, 2, 1, h - 2, tone('plaster', 0)); // ombre du joint
+    px(ctx, 0, CAP, 2, h - CAP, tone('wood', 2));
+    px(ctx, 0, CAP, 1, h - CAP, tone('wood', 3));
+    px(ctx, T - 1, CAP, 1, h - CAP, tone('plaster', 0)); // ombre du joint
 
     if (variant === 1) {
       // Croix de Saint-Andre, pour casser la repetition d'une facade longue.
-      ctx.fillStyle = tone('wood', 2);
-      for (let i = 0; i < h - 8; i++) {
-        const t = i / (h - 9);
-        px(ctx, Math.round(2 + t * (T - 6)), 6 + i, 2, 1, tone('wood', 2));
-        px(ctx, Math.round(T - 4 - t * (T - 6)), 6 + i, 2, 1, tone('wood', 1));
+      const span = h - CAP - 3;
+      for (let i = 0; i < span; i++) {
+        const t = i / (span - 1);
+        px(ctx, Math.round(2 + t * (T - 6)), CAP + 2 + i, 2, 1, tone('wood', 2));
+        px(ctx, Math.round(T - 4 - t * (T - 6)), CAP + 2 + i, 2, 1, tone('wood', 1));
       }
     } else if (variant === 2) {
       // Fenetre a meneaux, volet ouvert sur l'obscurite.
-      px(ctx, 4, 8, 8, 9, tone('wood', 1));
-      px(ctx, 5, 9, 6, 7, '#0f0d0b');
-      px(ctx, 8, 9, 1, 7, tone('wood', 2));
-      px(ctx, 5, 12, 6, 1, tone('wood', 2));
-      px(ctx, 5, 9, 6, 1, tone('wood', 0));
+      px(ctx, 4, CAP + 4, 8, 9, tone('wood', 1));
+      px(ctx, 5, CAP + 5, 6, 7, '#0f0d0b');
+      px(ctx, 8, CAP + 5, 1, 7, tone('wood', 2));
+      px(ctx, 5, CAP + 8, 6, 1, tone('wood', 2));
+      px(ctx, 5, CAP + 5, 6, 1, tone('wood', 0));
     }
 
-    // Ombre portee du toit sur le haut du mur.
-    ditherGradientV(ctx, 2, 2, T - 4, 5, tone('plaster', 1), tone('plaster', 0), 0.7, 0.0);
+    // --- Couronnement : la tranche du mur, en vue de dessus.
+    noiseFill(ctx, T, CAP, [tone('stone', 2), tone('stone', 3)], [2, 3], 55 + variant, 2);
+    px(ctx, 0, 0, T, 1, tone('stone', 4)); // arete lointaine, en pleine lumiere
+    px(ctx, 0, CAP - 2, T, 1, tone('stone', 1));
+    px(ctx, 0, CAP - 1, T, 1, tone('stone', 0)); // arete proche, dans l'ombre
+    // Joints de pierre, pour que la tranche ne soit pas un aplat.
+    for (let x = (variant * 5) % 8; x < T; x += 8) px(ctx, x, 1, 1, CAP - 3, tone('stone', 1));
+
+    // Ombre portee du couronnement sur la face.
+    ditherGradientV(ctx, 2, CAP, T - 4, 5, tone('plaster', 1), tone('plaster', 0), 0.75, 0.0);
   });
 }
 
@@ -450,18 +538,19 @@ function doorSprite(open: boolean): Sprite {
  * plutot qu'une ellipse unie, avec une silhouette irreguliere obtenue par
  * amas de disques.
  */
-function treeSprite(seed: number): Sprite {
+function treeSprite(seed: number, ramp: RampName = 'leaf', big = false): Sprite {
   const rng = new Rng(seed);
-  const w = T + 12;
-  const h = T * 3 + 8;
+  const w = T + (big ? 20 : 12);
+  const h = T * 3 + (big ? 20 : 8);
   return makeSprite(w, h, (ctx) => {
     const cx = w / 2;
     const trunkTop = h - 16;
 
     // Tronc, eclaire a gauche.
-    ditherGradientV(ctx, cx - 3, trunkTop, 6, 16, tone('wood', 1), tone('wood', 2), 0.6, 0.2);
-    px(ctx, cx - 3, trunkTop, 1, 16, tone('wood', 3));
-    px(ctx, cx + 2, trunkTop, 1, 16, tone('wood', 0));
+    const tw = big ? 8 : 6;
+    ditherGradientV(ctx, cx - tw / 2, trunkTop, tw, 16, tone('wood', 1), tone('wood', 2), 0.6, 0.2);
+    px(ctx, cx - tw / 2, trunkTop, 1, 16, tone('wood', 3));
+    px(ctx, cx + tw / 2 - 1, trunkTop, 1, 16, tone('wood', 0));
     // Racines.
     px(ctx, cx - 5, h - 3, 3, 2, tone('wood', 1));
     px(ctx, cx + 2, h - 3, 3, 2, tone('wood', 1));
@@ -473,29 +562,30 @@ function treeSprite(seed: number): Sprite {
       ctx.fill();
     };
 
-    const cy = trunkTop - 12;
+    const cy = trunkTop - (big ? 20 : 12);
+    const s = big ? 1.45 : 1;
     // Passe 1 : masse d'ombre.
-    for (let i = 0; i < 6; i++) {
-      blob(cx + rng.int(-8, 8), cy + rng.int(-8, 8), rng.int(7, 10), tone('leaf', 1));
+    for (let i = 0; i < 8; i++) {
+      blob(cx + rng.int(-8, 8) * s, cy + rng.int(-8, 8) * s, rng.int(7, 10) * s, tone(ramp, 1));
     }
     // Passe 2 : corps, decale vers le haut a gauche.
-    for (let i = 0; i < 6; i++) {
-      blob(cx - 2 + rng.int(-6, 6), cy - 3 + rng.int(-6, 6), rng.int(5, 8), tone('leaf', 2));
+    for (let i = 0; i < 8; i++) {
+      blob(cx - 2 * s + rng.int(-6, 6) * s, cy - 3 * s + rng.int(-6, 6) * s, rng.int(5, 8) * s, tone(ramp, 2));
     }
     // Passe 3 : hautes lumieres, franchement en haut a gauche.
-    for (let i = 0; i < 5; i++) {
-      blob(cx - 5 + rng.int(-4, 4), cy - 7 + rng.int(-4, 4), rng.int(3, 5), tone('leaf', 3));
+    for (let i = 0; i < 6; i++) {
+      blob(cx - 5 * s + rng.int(-4, 4) * s, cy - 7 * s + rng.int(-4, 4) * s, rng.int(3, 5) * s, tone(ramp, 3));
     }
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 20; i++) {
       const a = rng.next() * Math.PI * 2;
-      const d = rng.int(2, 8);
-      px(ctx, Math.round(cx - 5 + Math.cos(a) * d), Math.round(cy - 7 + Math.sin(a) * d), 1, 1, tone('leaf', 4));
+      const d = rng.int(2, 9) * s;
+      px(ctx, Math.round(cx - 5 * s + Math.cos(a) * d), Math.round(cy - 7 * s + Math.sin(a) * d), 1, 1, tone(ramp, 4));
     }
     // Bordure basse-droite assombrie : la mise en volume.
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 16; i++) {
       const a = rng.next() * Math.PI * 0.7 + Math.PI * 0.1;
-      const d = rng.int(8, 12);
-      px(ctx, Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d), 1, 1, tone('leaf', 0));
+      const d = rng.int(8, 13) * s;
+      px(ctx, Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d), 1, 1, tone(ramp, 0));
     }
   });
 }
@@ -773,6 +863,86 @@ function sconceSprite(lit: boolean): Sprite {
       px(ctx, 7, 1, 2, 7, tone('fire', 3));
       px(ctx, 7, 0, 2, 3, tone('fire', 4));
     }
+  });
+}
+
+/**
+ * Barriere de bois. Se pose en enfilade : les traverses touchent les bords de
+ * la tuile pour que deux barrieres voisines se raccordent.
+ */
+function fenceSprite(): Sprite {
+  const h = T + 8;
+  return makeSprite(T, h, (ctx) => {
+    // Traverses, d'un bord a l'autre.
+    for (const y of [8, 15]) {
+      px(ctx, 0, y, T, 3, tone('wood', 2));
+      px(ctx, 0, y, T, 1, tone('wood', 3));
+      px(ctx, 0, y + 2, T, 1, tone('wood', 0));
+    }
+    // Poteau, decale du bord pour ne pas doubler avec le voisin.
+    px(ctx, 3, 4, 4, h - 6, tone('wood', 1));
+    px(ctx, 3, 4, 1, h - 6, tone('wood', 3));
+    px(ctx, 6, 4, 1, h - 6, tone('wood', 0));
+    px(ctx, 3, 4, 4, 1, tone('wood', 4));
+  });
+}
+
+/** Ecu accroche au mur : trophee, et tache de couleur en hauteur. */
+function shieldSprite(variant: number): Sprite {
+  const ramps: RampName[] = ['royal', 'blood', 'leaf'];
+  const ramp = ramps[variant % ramps.length]!;
+  return makeSprite(T, T, (ctx) => {
+    ctx.fillStyle = tone('metal', 2);
+    ctx.beginPath();
+    ctx.moveTo(3, 3);
+    ctx.lineTo(13, 3);
+    ctx.lineTo(13, 9);
+    ctx.lineTo(8, 14);
+    ctx.lineTo(3, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = tone(ramp, 2);
+    ctx.beginPath();
+    ctx.moveTo(4, 4);
+    ctx.lineTo(12, 4);
+    ctx.lineTo(12, 9);
+    ctx.lineTo(8, 13);
+    ctx.lineTo(4, 9);
+    ctx.closePath();
+    ctx.fill();
+    px(ctx, 4, 4, 5, 1, tone(ramp, 3));
+    px(ctx, 7, 6, 2, 5, tone('gold', 3)); // meuble heraldique
+    px(ctx, 5, 8, 6, 1, tone('gold', 3));
+    px(ctx, 11, 6, 1, 4, tone(ramp, 0));
+  });
+}
+
+/** Jambon suspendu : le detail qui fait qu'une cuisine est une cuisine. */
+function hamSprite(): Sprite {
+  return makeSprite(T, T + 4, (ctx) => {
+    px(ctx, 8, 0, 1, 5, tone('metal', 2)); // crochet
+    ctx.fillStyle = tone('blood', 2);
+    ctx.beginPath();
+    ctx.ellipse(8, 11, 5, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = tone('blood', 3);
+    ctx.beginPath();
+    ctx.ellipse(6, 9, 3, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    px(ctx, 7, 4, 3, 3, tone('linen', 3)); // couenne
+    px(ctx, 7, 17, 2, 2, tone('linen', 1)); // os
+  });
+}
+
+/** Sac de grain : encombre les reserves sans coûter cher a dessiner. */
+function sackSprite(): Sprite {
+  return makeSprite(T, T, (ctx) => {
+    ditherRect(ctx, 3, 6, 10, 9, tone('linen', 2), tone('linen', 3), 0.5);
+    px(ctx, 3, 6, 10, 1, tone('linen', 4));
+    px(ctx, 12, 7, 1, 8, tone('linen', 1));
+    px(ctx, 5, 3, 6, 4, tone('linen', 2));
+    px(ctx, 5, 3, 4, 1, tone('linen', 3));
+    px(ctx, 6, 2, 4, 1, tone('wood', 2)); // lien
   });
 }
 
@@ -1185,7 +1355,16 @@ export function buildArt(): void {
   atlas.set('dishes', [dishesSprite()]);
   atlas.set('sconce', [sconceSprite(true), sconceSprite(false)]);
   atlas.set('door', [doorSprite(false), doorSprite(true)]);
-  atlas.set('tree', [treeSprite(700), treeSprite(701), treeSprite(702)]);
+  // Six arbres : trois verts dont un grand, trois roux. La variete de taille
+  // et de saison est ce qui donne leur couleur aux villes d'Ultima VII.
+  atlas.set('tree', [
+    treeSprite(700),
+    treeSprite(701),
+    treeSprite(702, 'leaf', true),
+    treeSprite(703, 'autumn'),
+    treeSprite(704, 'autumn', true),
+    treeSprite(705, 'autumn'),
+  ]);
   atlas.set('bush', [bushSprite(710), bushSprite(711)]);
   atlas.set('flower', [flowerSprite(0), flowerSprite(1), flowerSprite(2)]);
   atlas.set('pebble', [pebbleSprite(720), pebbleSprite(721)]);
@@ -1202,6 +1381,10 @@ export function buildArt(): void {
   atlas.set('barrel', [barrelSprite()]);
   atlas.set('crate', [crateSprite()]);
   atlas.set('bag', [bagSprite()]);
+  atlas.set('fence', [fenceSprite()]);
+  atlas.set('shield', [shieldSprite(0), shieldSprite(1), shieldSprite(2)]);
+  atlas.set('ham', [hamSprite()]);
+  atlas.set('sack', [sackSprite()]);
 
   for (const [id, painter] of Object.entries(itemPainters)) {
     atlas.set(id, [smallItem(painter)]);
@@ -1222,6 +1405,18 @@ export function buildArt(): void {
   }
 
   buildTransitions();
+  buildKerbs();
+}
+
+const kerbs = new Map<string, Sprite>();
+
+function buildKerbs(): void {
+  for (const dir of ['n', 'e', 's', 'w'] as const) kerbs.set(dir, kerbSprite(dir));
+}
+
+/** Bordure de trottoir pour un cote donne. */
+export function getKerb(dir: 'n' | 'e' | 's' | 'w'): Sprite | undefined {
+  return kerbs.get(dir);
 }
 
 /** Liserés de debordement, pour chaque terrain et chaque direction. */

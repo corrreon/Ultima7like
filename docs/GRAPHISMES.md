@@ -157,6 +157,30 @@ Même logique pour les murs : trois variantes réparties de façon déterministe
 chaque tuile est identique se lit comme une texture répétée, pas comme un
 bâtiment.
 
+### Les murs ont une épaisseur
+
+Le détail le plus révélateur des captures d'Ultima VII. On y voit la **tranche
+supérieure** du mur — une bande de pierre claire, vue de dessus — puis la face
+en dessous. Un mur réduit à un panneau vertical se lit comme un décor de
+théâtre ; le couronnement lui donne un volume, et le bâtiment devient un solide.
+
+Deux points de méthode :
+
+- prendre le couronnement **dans** la hauteur du sprite plutôt que l'ajouter :
+  un mur plus haut dépasserait du toit, qui est calé sur la géométrie existante ;
+- lui donner une arête claire en haut (elle s'éloigne du regard, en pleine
+  lumière), une arête sombre en bas, et une ombre portée sur la face.
+
+### Les surfaces construites ont une bordure
+
+Une rue pavée d'Ultima VII est cernée d'un rang de pierres de taille. Sans cette
+bordure, une zone pavée n'est qu'une tache de texture différente au milieu de
+l'herbe ; avec elle, elle se lit comme un ouvrage délimité. Quatre sprites de
+bordure — un par côté — posés sur le pourtour suffisent.
+
+C'est le pendant de la règle des priorités de terrain : les sols naturels se
+fondent l'un dans l'autre, les sols construits ont un bord net et assumé.
+
 ### Le piège : ce qui dépasse à travers le toit
 
 Dès que les objets gagnent en hauteur, ils **transpercent la toiture** vue de
@@ -174,13 +198,29 @@ Des pièces vides avec quatre meubles font « niveau de test », exactement comm
 un sol nu. Les intérieurs d'Ultima VII sont encombrés : bibliothèques, tapis,
 plantes en pot, tabourets, vaisselle sur les tables, appliques aux murs.
 
-Deux détails portent beaucoup :
+Trois détails portent beaucoup :
 
 - **un meuble haut adossé à un mur** change la lecture d'une pièce, parce qu'il
   donne une élévation à autre chose que les murs ;
 - **une applique murale** posée sur la tuile *devant* le mur avec un lift de 2
   retombe pile sur la maçonnerie — le décalage diagonal de la hauteur fait le
-  travail tout seul.
+  travail tout seul. Le même truc accroche un écu ou un jambon ;
+- **des objets sans utilité mécanique**. La boucherie d'Ultima VII a son
+  couperet, sa carcasse suspendue, ses quartiers de viande : rien de tout cela
+  ne sert au jeu, et c'est pourtant ce qui fait qu'on sait immédiatement où
+  l'on est. Un décor qui ne contient que des objets utilisables est un décor de
+  niveau de test.
+
+Dehors, même principe avec les **clôtures** : une prairie uniquement peuplée
+d'arbres n'a aucune ligne construite. Quelques barrières suffisent à structurer
+le paysage.
+
+### La végétation porte la couleur
+
+Les arbres d'Ultima VII sont gros et souvent roux. Deux leviers, tous deux
+gratuits : faire varier la **taille** des houppiers, et introduire une rampe
+d'automne. Un arbre sur trois en feuillage roux change complètement la couleur
+d'un bourg — bien plus que n'importe quel réglage sur la teinte de l'herbe.
 
 ## 8. Les portraits de dialogue
 

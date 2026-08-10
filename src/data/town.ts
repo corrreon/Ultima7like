@@ -240,7 +240,7 @@ function stampBuilding(world: World, plan: Blueprint): void {
  */
 function furnishInteriors(world: World, rng: Rng): void {
   for (const region of world.regions) {
-    let sconces = 0;
+    let wallProps = 0;
     for (let ty = region.y0 + 1; ty < region.y1; ty++) {
       for (let tx = region.x0 + 1; tx < region.x1; tx++) {
         const here = world.objectsAt(tx, ty);
@@ -252,15 +252,22 @@ function furnishInteriors(world: World, rng: Rng): void {
           continue;
         }
 
-        // Applique : tuile libre dont le voisin nord est un mur.
-        if (sconces >= 3 || here.length > 0) continue;
+        // Accroches murales : tuile libre dont le voisin nord est un mur.
+        if (wallProps >= 5 || here.length > 0) continue;
         if (world.terrainAt(tx, ty) !== 'woodfloor') continue;
         const north = world.objectsAt(tx, ty - 1);
         if (!north.some((o) => o.shapeId === 'wall')) continue;
-        if (!rng.chance(0.4)) continue;
-        const sconce = place(world, 'sconce', tx, ty);
-        sconce.tz = 2;
-        sconces++;
+        if (!rng.chance(0.45)) continue;
+
+        // Applique, ecu ou jambon : ce sont ces objets sans utilite mecanique
+        // qui font qu'une piece raconte quelque chose.
+        const roll = rng.next();
+        const shapeId = roll < 0.5 ? 'sconce' : roll < 0.8 ? 'shield' : 'ham';
+        const prop = place(world, shapeId, tx, ty, {
+          frame: shapeId === 'shield' ? rng.int(0, 2) : 0,
+        });
+        prop.tz = 2;
+        wallProps++;
       }
     }
   }
@@ -361,7 +368,8 @@ export function buildTown(seed = 1337): World {
     const tx = rng.int(2, WORLD_SIZE - 3);
     const ty = rng.int(2, WORLD_SIZE - 3);
     if (!isFree(tx, ty)) continue;
-    if (rng.chance(0.72)) place(world, 'tree', tx, ty, { frame: rng.int(0, 2) });
+    // Un arbre sur trois est roux : c'est ce qui donne sa couleur au paysage.
+    if (rng.chance(0.72)) place(world, 'tree', tx, ty, { frame: rng.int(0, 5) });
     else place(world, 'bush', tx, ty, { frame: rng.int(0, 1) });
   }
 
@@ -393,8 +401,22 @@ export function buildTown(seed = 1337): World {
     [25, 31, 'crate'], [25, 30, 'barrel'], [39, 27, 'crate'],
     [51, 32, 'barrel'], [63, 30, 'crate'], [63, 31, 'crate'],
     [29, 56, 'barrel'], [53, 52, 'crate'],
+    [25, 29, 'sack'], [63, 32, 'sack'], [51, 33, 'sack'],
   ] as Array<[number, number, string]>) {
     if (!world.isBlocked(tx, ty)) place(world, shape, tx, ty);
+  }
+
+  // Barrieres : deux enclos de part et d'autre de la place. Une cloture donne
+  // au paysage des lignes construites, ce qui manque cruellement a une prairie
+  // uniquement peuplee d'arbres.
+  for (let tx = 36; tx <= 40; tx++) {
+    if (!world.isBlocked(tx, 45)) place(world, 'fence', tx, 45);
+  }
+  for (let ty = 45; ty <= 48; ty++) {
+    if (!world.isBlocked(36, ty)) place(world, 'fence', 36, ty);
+  }
+  for (let tx = 49; tx <= 53; tx++) {
+    if (!world.isBlocked(tx, 45)) place(world, 'fence', tx, 45);
   }
 
   // Eclairage public le long des routes

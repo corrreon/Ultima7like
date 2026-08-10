@@ -33,6 +33,9 @@ export const RAMPS = {
   plaster: ['#52493a', '#6d6250', '#897c66', '#a4977e', '#bfb298'],
   roof: ['#3d1a12', '#5e2a1c', '#7d3d29', '#9c5238', '#b86a4a'],
   leaf: ['#12290f', '#1e421a', '#2d5d25', '#3d7a31', '#549c40'],
+  // Feuillage d'automne : les captures d'Ultima VII sont pleines d'arbres
+  // roux, et c'est une grande part de la couleur de ses villes.
+  autumn: ['#3d1c07', '#5e2f0b', '#8a4d12', '#b8721c', '#d99a30'],
   metal: ['#24242a', '#38383f', '#4e4e56', '#66666e', '#828289'],
   cloth: ['#2f1338', '#4d1f5c', '#73308a', '#9a47b0', '#c46ad6'],
   linen: ['#4a4335', '#665e4c', '#837a65', '#a0977f', '#bdb49b'],

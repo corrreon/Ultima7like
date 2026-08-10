@@ -86,7 +86,7 @@ def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, fra
 def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 12, roof: true });
 def({ id: 'chimney', name: 'Cheminee', kind: 'object', footprint: [1, 1], height: 3, frames: 1, roof: true });
 def({ id: 'door', name: 'Porte', kind: 'object', footprint: [1, 1], height: 5, frames: 2, solid: true, door: true });
-def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, frames: 2, solid: true });
+def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, frames: 6, solid: true });
 def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
 def({ id: 'table', name: 'Table', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'chair', name: 'Chaise', kind: 'object', footprint: [1, 1], height: 2, frames: 1 });
@@ -99,6 +99,12 @@ def({ id: 'dishes', name: 'Vaisselle', kind: 'object', footprint: [1, 1], height
 // Applique murale : posee sur la tuile devant le mur, avec un lift de 2, elle
 // se dessine pile sur le mur. Non solide, sinon elle condamne les couloirs.
 def({ id: 'sconce', name: 'Applique', kind: 'object', footprint: [1, 1], height: 3, frames: 2, light: 3 });
+def({ id: 'fence', name: 'Barriere', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
+// Ecu et jambon sont poses sur la tuile devant le mur avec un lift de 2 :
+// le decalage diagonal de la hauteur les accroche pile a la maconnerie.
+def({ id: 'shield', name: 'Ecu', kind: 'object', footprint: [1, 1], height: 3, frames: 3 });
+def({ id: 'ham', name: 'Jambon', kind: 'object', footprint: [1, 1], height: 3, frames: 1, takeable: true, weight: 40, volume: 6, food: 30, value: 8 });
+def({ id: 'sack', name: 'Sac de grain', kind: 'object', footprint: [1, 1], height: 1, frames: 1, solid: true, container: true, capacity: 16, weight: 120, volume: 12 });
 def({ id: 'anvil', name: 'Enclume', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'sign', name: 'Enseigne', kind: 'object', footprint: [1, 1], height: 3, frames: 1, solid: true });
 def({
