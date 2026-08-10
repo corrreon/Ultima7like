@@ -113,13 +113,13 @@ export const LANDMARKS = {
 
 function stampRoad(world: World, x0: number, y0: number, x1: number, y1: number): void {
   for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) world.setTerrain(x, y, 'dirt', (x + y) % 2);
+    for (let x = x0; x <= x1; x++) world.setTerrain(x, y, 'dirt', (x * 5 + y * 3) % 4);
   }
 }
 
 function stampStone(world: World, x0: number, y0: number, x1: number, y1: number): void {
   for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) world.setTerrain(x, y, 'stone', (x * 3 + y) % 2);
+    for (let x = x0; x <= x1; x++) world.setTerrain(x, y, 'stone', (x * 3 + y * 7) % 4);
   }
 }
 
@@ -151,7 +151,7 @@ function stampBuilding(world: World, plan: Blueprint): void {
       const ty = plan.oy + row;
 
       // Sol : pierre sous les murs, plancher a l'interieur.
-      world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx + ty) % 2);
+      world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx * 3 + ty * 5) % 4);
 
       switch (char) {
         case '#': {
@@ -320,7 +320,7 @@ export function buildTown(seed = 1337): World {
   // Terrain de base
   for (let ty = 0; ty < WORLD_SIZE; ty++) {
     for (let tx = 0; tx < WORLD_SIZE; tx++) {
-      world.setTerrain(tx, ty, 'grass', rng.int(0, 3));
+      world.setTerrain(tx, ty, 'grass', rng.int(0, 5));
     }
   }
 
@@ -329,8 +329,8 @@ export function buildTown(seed = 1337): World {
   for (let ty = pond.cy - pond.r - 2; ty <= pond.cy + pond.r + 2; ty++) {
     for (let tx = pond.cx - pond.r - 2; tx <= pond.cx + pond.r + 2; tx++) {
       const d = Math.hypot(tx - pond.cx, ty - pond.cy);
-      if (d <= pond.r) world.setTerrain(tx, ty, 'water', rng.int(0, 1));
-      else if (d <= pond.r + 1.8) world.setTerrain(tx, ty, 'sand', rng.int(0, 1));
+      if (d <= pond.r) world.setTerrain(tx, ty, 'water', rng.int(0, 3));
+      else if (d <= pond.r + 1.8) world.setTerrain(tx, ty, 'sand', rng.int(0, 3));
     }
   }
 

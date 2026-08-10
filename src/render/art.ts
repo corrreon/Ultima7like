@@ -7,6 +7,8 @@ import {
   bayer,
   ditherGradientV,
   ditherRect,
+  hashNoise,
+  noiseFill,
   tone,
   type RampName,
 } from './palette';
@@ -55,16 +57,54 @@ const T = TILE_SIZE;
 // --- Terrains -------------------------------------------------------------
 
 /**
- * Texture de terrain : deux niveaux de rampe tramés, plus des grains isoles
- * pour casser la regularite du damier de Bayer.
+ * Motif enroule sur les bords de la tuile.
+ *
+ * C'est la technique qui casse la grille. Un galet dessine pres d'un bord est
+ * aussi dessine de l'autre cote, si bien que la tuile se raccorde a elle-meme :
+ * les formes traversent les jointures au lieu de s'arreter dessus. Sans cela,
+ * un sol pave se lit comme un carrelage, ce qui est exactement le defaut que
+ * les sols d'Ultima VII n'ont pas.
  */
-function terrainSprite(ramp: RampName, seed: number, base = 2, speckles = 14): Sprite {
+function wrapEllipse(
+  ctx: Ctx2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: string,
+): void {
+  ctx.fillStyle = color;
+  for (const ox of [-T, 0, T]) {
+    for (const oy of [-T, 0, T]) {
+      ctx.beginPath();
+      ctx.ellipse(cx + ox, cy + oy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/**
+ * Texture de terrain meuble : bruit fin apériodique, plus des taches larges
+ * enroulees qui font varier la valeur a grande echelle.
+ */
+function terrainSprite(ramp: RampName, seed: number, base = 2, speckles = 10): Sprite {
   const rng = new Rng(seed);
   return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone(ramp, base), tone(ramp, base + 1), 0.45);
+    noiseFill(ctx, T, T, [tone(ramp, base - 1), tone(ramp, base)], [3, 4], seed, 2);
+    // Taches larges : la variation de valeur a grande echelle empeche le sol
+    // de ressembler a du papier de verre uniforme.
+    for (let i = 0; i < 3; i++) {
+      wrapEllipse(
+        ctx,
+        rng.int(0, T),
+        rng.int(0, T),
+        rng.int(3, 6),
+        rng.int(2, 4),
+        tone(ramp, rng.chance(0.5) ? base - 1 : base + 1),
+      );
+    }
     for (let i = 0; i < speckles; i++) {
-      const level = rng.chance(0.5) ? base - 1 : base + 2;
-      px(ctx, rng.int(0, T - 1), rng.int(0, T - 1), 1, 1, tone(ramp, level));
+      px(ctx, rng.int(0, T - 1), rng.int(0, T - 1), 1, 1, tone(ramp, base + 2));
     }
   });
 }
@@ -83,14 +123,41 @@ function terrainSprite(ramp: RampName, seed: number, base = 2, speckles = 14): S
 function grassSprite(seed: number, detail: number): Sprite {
   const rng = new Rng(seed);
   return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone('grass', 1), tone('grass', 2), 0.42);
+    // Bruit fin plutot que tramage : le damier de Bayer se lit comme un
+    // grillage regulier des qu'il couvre une pelouse entiere.
+    // Bande de valeurs resserree : l'herbe doit lire comme une masse, pas
+    // comme un semis de points clairs et sombres.
+    noiseFill(ctx, T, T, [tone('grass', 1), tone('grass', 2)], [4, 3], seed, 2);
+    // Quelques amas a peine plus sombres. Le premier reglage utilisait le
+    // niveau le plus sombre de la rampe : sur une pelouse entiere, cela
+    // redevenait du bruit au lieu d'une variation de matiere.
+    for (let i = 0; i < 3; i++) {
+      wrapEllipse(ctx, rng.int(0, T - 1), rng.int(0, T - 1), 2.2, 1.6, tone('grass', 1));
+    }
+    // Plaques d'herbe plus rase ou plus drue, enroulees sur les bords.
+    for (let i = 0; i < 2; i++) {
+      wrapEllipse(
+        ctx,
+        rng.int(0, T),
+        rng.int(0, T),
+        rng.int(4, 7),
+        rng.int(3, 5),
+        tone('grass', rng.chance(0.5) ? 1 : 2),
+      );
+    }
     for (let i = 0; i < detail; i++) {
       const x = rng.int(1, T - 2);
       const y = rng.int(2, T - 2);
       px(ctx, x, y, 1, 2, tone('grass', 3));
     }
-    for (let i = 0; i < 3; i++) {
-      px(ctx, rng.int(0, T - 1), rng.int(0, T - 1), 1, 1, tone('grass', 0));
+    // Petites fleurs incrustees dans le sol. Ultima VII en seme dans ses
+    // pelouses : ce sont elles qui donnent la couleur, pas l'herbe.
+    if (detail > 0 && rng.chance(0.55)) {
+      const fx = rng.int(2, T - 3);
+      const fy = rng.int(2, T - 3);
+      const ramp: RampName = rng.chance(0.6) ? 'royal' : 'linen';
+      px(ctx, fx, fy, 1, 1, tone(ramp, 4));
+      px(ctx, fx + 1, fy + 1, 1, 1, tone(ramp, 3));
     }
   });
 }
@@ -98,7 +165,7 @@ function grassSprite(seed: number, detail: number): Sprite {
 /** Eau animee : la houle se decale d'une frame a l'autre. */
 function waterSprite(phase: number): Sprite {
   return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone('water', 1), tone('water', 2), 0.4);
+    noiseFill(ctx, T, T, [tone('water', 0), tone('water', 1), tone('water', 2)], [1, 3, 2], 40 + phase, 2);
     // Trois trainees de crete qui defilent horizontalement.
     for (let i = 0; i < 3; i++) {
       const y = 2 + i * 5 + ((phase + i) % 2);
@@ -114,17 +181,37 @@ function waterSprite(phase: number): Sprite {
   });
 }
 
+/**
+ * Dallage de galets.
+ *
+ * Le premier jet dessinait une dalle carree par tuile, avec un joint sur les
+ * quatre bords : resultat, un carrelage impeccable et parfaitement artificiel.
+ * Les sols d'Ultima VII sont des semis de galets de tailles variees, dont
+ * aucun ne s'aligne sur la grille — c'est ce desordre qui les fait lire comme
+ * un vrai sol.
+ *
+ * Chaque galet est donc pose au hasard et **enroule** sur les bords, avec sa
+ * haute lumiere en haut a gauche et son ombre en bas a droite.
+ */
 function stoneFloorSprite(seed: number): Sprite {
   const rng = new Rng(seed);
   return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone('stone', 2), tone('stone', 3), 0.4);
-    // Joints : clair en haut a gauche, sombre en bas a droite.
-    px(ctx, 0, 0, T, 1, tone('stone', 4));
-    px(ctx, 0, 0, 1, T, tone('stone', 4));
-    px(ctx, 0, T - 1, T, 1, tone('stone', 0));
-    px(ctx, T - 1, 0, 1, T, tone('stone', 0));
-    for (let i = 0; i < 10; i++) {
-      px(ctx, rng.int(1, T - 2), rng.int(1, T - 2), 1, 1, tone('stone', rng.chance(0.5) ? 1 : 4));
+    // Mortier : bruit sombre, visible seulement entre les galets.
+    noiseFill(ctx, T, T, [tone('stone', 0), tone('stone', 1)], [2, 1], seed, 2);
+
+    const count = rng.int(6, 8);
+    for (let i = 0; i < count; i++) {
+      const cx = rng.int(0, T - 1);
+      const cy = rng.int(0, T - 1);
+      const rx = rng.int(2, 4) + rng.next();
+      const ry = rx * (0.7 + rng.next() * 0.5);
+      const level = rng.chance(0.35) ? 3 : 2;
+
+      wrapEllipse(ctx, cx, cy, rx, ry, tone('stone', level));
+      // Haute lumiere : un galet legerement plus petit, decale en haut a gauche.
+      wrapEllipse(ctx, cx - rx * 0.28, cy - ry * 0.3, rx * 0.62, ry * 0.62, tone('stone', level + 1));
+      // Ombre de contact, en bas a droite.
+      wrapEllipse(ctx, cx + rx * 0.5, cy + ry * 0.55, rx * 0.4, ry * 0.35, tone('stone', level - 1));
     }
   });
 }
@@ -136,14 +223,19 @@ function stoneFloorSprite(seed: number): Sprite {
  * lames trop marquees zebrent la piece et noient le mobilier, qui est lui
  * aussi en bois — il faut que la table se detache du sol sur lequel elle pose.
  */
-function woodFloorSprite(seed: number): Sprite {
+function woodFloorSprite(seed: number, offset: number): Sprite {
   const rng = new Rng(seed);
   return makeSprite(T, T, (ctx) => {
-    ditherRect(ctx, 0, 0, T, T, tone('wood', 1), tone('wood', 2), 0.4);
-    for (let y = 0; y < T; y += 6) {
+    noiseFill(ctx, T, T, [tone('wood', 1), tone('wood', 2)], [2, 1], seed, 2);
+    // Les joints de lames sont decales d'une variante a l'autre : alignes, ils
+    // dessineraient des lignes continues sur toute la largeur de la piece.
+    for (let y = offset; y < T; y += 6) {
       px(ctx, 0, y, T, 1, tone('wood', 0));
+      px(ctx, 0, y + 1, T, 1, tone('wood', 3));
     }
-    for (let i = 0; i < 3; i++) {
+    // Bouts de lames : les joints verticaux ne tombent pas au meme endroit.
+    px(ctx, rng.int(2, T - 3), offset, 1, 6, tone('wood', 0));
+    for (let i = 0; i < 4; i++) {
       const y = rng.int(0, T - 1);
       px(ctx, rng.int(0, T - 7), y, rng.int(3, 6), 1, tone('wood', 2));
     }
@@ -158,13 +250,21 @@ function woodFloorSprite(seed: number): Sprite {
  * transforme ensuite en pixels pleins ou transparents.
  */
 function edgeAlpha(dir: TransitionDir, x: number, y: number): number {
-  const depth = T * 0.45; // profondeur du liseré
+  const depth = T * 0.5; // profondeur du liseré
   const fromN = y;
   const fromS = T - 1 - y;
   const fromW = x;
   const fromE = T - 1 - x;
 
-  const fade = (d: number): number => Math.max(0, 1 - d / depth);
+  // La frontiere ondule au lieu de suivre une bande d'epaisseur constante.
+  // Sur la greve d'Ultima VII, l'herbe mord sur le sable par avancees et
+  // reculs irreguliers ; un liseré rectiligne fait tout de suite « masque
+  // calcule ». Deux octaves de bruit suffisent a rompre la regularite.
+  const wobble =
+    (hashNoise(Math.floor(x / 3), Math.floor(y / 3), 91) - 0.5) * 5 +
+    (hashNoise(x, y, 17) - 0.5) * 2;
+
+  const fade = (d: number): number => Math.max(0, 1 - (d + wobble) / depth);
 
   switch (dir) {
     case 'n':
@@ -1061,12 +1161,13 @@ export function buildArt(): void {
   if (atlas.size > 0) return;
 
   // Variantes d'herbe : de la tuile nue a la tuile legerement herbue.
-  atlas.set('grass', [0, 1, 2, 3].map((i) => grassSprite(100 + i, [0, 1, 2, 1][i]!)));
-  atlas.set('dirt', [0, 1, 2].map((i) => terrainSprite('dirt', 200 + i)));
-  atlas.set('sand', [0, 1, 2].map((i) => terrainSprite('sand', 300 + i, 3)));
+  // Six variantes d'herbe : plus il y en a, moins la repetition se voit.
+  atlas.set('grass', [0, 1, 2, 3, 4, 5].map((i) => grassSprite(100 + i, [0, 1, 2, 1, 0, 2][i]!)));
+  atlas.set('dirt', [0, 1, 2, 3].map((i) => terrainSprite('dirt', 200 + i)));
+  atlas.set('sand', [0, 1, 2, 3].map((i) => terrainSprite('sand', 300 + i, 3)));
   atlas.set('water', [0, 1, 2, 3].map((i) => waterSprite(i)));
-  atlas.set('stone', [0, 1, 2].map((i) => stoneFloorSprite(500 + i)));
-  atlas.set('woodfloor', [0, 1, 2].map((i) => woodFloorSprite(600 + i)));
+  atlas.set('stone', [0, 1, 2, 3].map((i) => stoneFloorSprite(500 + i)));
+  atlas.set('woodfloor', [0, 1, 2, 3].map((i) => woodFloorSprite(600 + i, i % 3)));
 
   atlas.set('wall', [wallSprite(0), wallSprite(1), wallSprite(2)]);
   // Toiture : 4 positions en rang (faitage, versants, egout) x 3 en colonne

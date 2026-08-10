@@ -28,19 +28,19 @@ export const RAMPS = {
   dirt: ['#40311e', '#5a4629', '#735a36', '#8d7245', '#a68a5b'],
   sand: ['#6f5d39', '#8d764c', '#a89060', '#c2ab77', '#d9c495'],
   water: ['#0d1f31', '#152d45', '#1e4160', '#2b587d', '#3c739c'],
-  stone: ['#33332f', '#4a4a45', '#61615a', '#787870', '#909088'],
+  stone: ['#2e2c28', '#433f3a', '#5a554e', '#716b62', '#8a8378'],
   wood: ['#33220f', '#4b331a', '#634527', '#7d5b35', '#966f45'],
   plaster: ['#52493a', '#6d6250', '#897c66', '#a4977e', '#bfb298'],
-  roof: ['#331a14', '#4e281e', '#68382a', '#804a37', '#996046'],
-  leaf: ['#152b13', '#20401c', '#2e5827', '#3d7133', '#508c42'],
+  roof: ['#3d1a12', '#5e2a1c', '#7d3d29', '#9c5238', '#b86a4a'],
+  leaf: ['#12290f', '#1e421a', '#2d5d25', '#3d7a31', '#549c40'],
   metal: ['#24242a', '#38383f', '#4e4e56', '#66666e', '#828289'],
-  cloth: ['#2f2338', '#453352', '#5c466c', '#745c86', '#8d75a0'],
+  cloth: ['#2f1338', '#4d1f5c', '#73308a', '#9a47b0', '#c46ad6'],
   linen: ['#4a4335', '#665e4c', '#837a65', '#a0977f', '#bdb49b'],
   skin: ['#5e3c2a', '#7d5238', '#9c6b4c', '#b98964', '#d2a882'],
-  gold: ['#5e4010', '#80591a', '#a17529', '#bf933d', '#d9b25e'],
+  gold: ['#5e4010', '#8a5c12', '#bd881c', '#e6b230', '#ffd96b'],
   fire: ['#6b1f07', '#98380b', '#c25f13', '#e08f28', '#f5c95f'],
-  blood: ['#3d1414', '#5c1f1d', '#7a2f28', '#963f35', '#b05446'],
-  royal: ['#141f3d', '#1f2f5c', '#2b4180', '#3a559c', '#4d6db8'],
+  blood: ['#3d1214', '#611d1c', '#8f2f26', '#bd4232', '#e05f42'],
+  royal: ['#111a3d', '#1c2a6b', '#2840a3', '#3a5cd1', '#5b84ee'],
 } as const;
 
 export type RampName = keyof typeof RAMPS;
@@ -121,6 +121,55 @@ export function ditherGradientV(
     const density = topDensity + (bottomDensity - topDensity) * t;
     for (let px = 0; px < w; px++) {
       if (density > bayer(x + px, y + py)) ctx.fillRect(x + px, y + py, 1, 1);
+    }
+  }
+}
+
+/**
+ * Bruit de hachage, deterministe et **aperiodique**.
+ *
+ * C'est le complement indispensable du tramage de Bayer. Bayer se repete tous
+ * les 4 pixels : parfait pour simuler une teinte intermediaire, desastreux pour
+ * texturer un sol. Une pelouse tramee en Bayer se lit comme un grillage
+ * regulier, et le damier des tuiles saute aux yeux. Les sols d'Ultima VII sont
+ * au contraire irreguliers a toutes les echelles.
+ */
+export function hashNoise(x: number, y: number, seed = 0): number {
+  let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(seed, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Remplit une zone de bruit fin, en piochant parmi plusieurs niveaux de rampe
+ * selon des poids. Remplace `ditherRect` partout ou la regularite se verrait.
+ */
+export function noiseFill(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  colors: string[],
+  weights: number[],
+  seed: number,
+  /**
+   * Taille du grain, en pixels. Le bruit pris pixel par pixel donne de la
+   * neige de television, pas une texture : l'oeil y voit du bruit et non de
+   * la matiere. Un grain de 2 produit de petits amas, ce qui est exactement
+   * l'aspect des sols d'Ultima VII.
+   */
+  grain = 2,
+): void {
+  const total = weights.reduce((a, b) => a + b, 0);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let pick = hashNoise(Math.floor(x / grain), Math.floor(y / grain), seed) * total;
+      let index = 0;
+      while (index < weights.length - 1 && pick > weights[index]!) {
+        pick -= weights[index]!;
+        index++;
+      }
+      ctx.fillStyle = colors[index] ?? colors[0]!;
+      ctx.fillRect(x, y, 1, 1);
     }
   }
 }

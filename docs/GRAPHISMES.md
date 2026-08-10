@@ -36,6 +36,39 @@ damier (matrice de Bayer) simule les teintes intermédiaires. C'est la texture
 granuleuse caractéristique de l'art VGA — et un dégradé lisse sur du pixel art
 se repère instantanément comme « moderne ».
 
+Dernier point, sous-estimé : **les fonds sont désaturés, les accents ne le sont
+pas.** Ultima VII pose des magentas, des ors et des rouges francs sur des
+pierres et des herbes ternes. Désaturer uniformément — le réflexe quand on
+cherche un rendu « d'époque » — donne une image plate. Ce sont les objets qui
+portent la couleur.
+
+## 1 bis. Casser la grille — le tramage ne suffit pas
+
+En comparant à de vraies captures d'Ultima VII, un défaut saute aux yeux que
+la palette seule ne corrige pas : **leurs sols ne se lisent pas comme des
+tuiles.** Un dallage y est un semis de galets de tailles variées dont aucun ne
+s'aligne sur la grille ; une pelouse est une masse continue.
+
+Trois causes, et trois remèdes :
+
+**Le tramage de Bayer est périodique.** Il se répète tous les 4 pixels :
+parfait pour simuler une teinte intermédiaire sur un petit sprite, désastreux
+pour texturer un sol. Une pelouse tramée en Bayer se lit comme un grillage
+régulier. Il faut du **bruit apériodique** (une fonction de hachage sur les
+coordonnées).
+
+**Le bruit par pixel n'est pas une texture.** Premier essai avec du bruit fin :
+de la neige de télévision. L'œil y voit du bruit, pas de la matière. Il faut un
+**grain** — échantillonner le bruit tous les 2 pixels produit de petits amas,
+ce qui est exactement l'aspect recherché. Même remarque sur l'amplitude : une
+bande de valeurs resserrée lit comme une masse, une bande large comme du
+poivre et sel.
+
+**Les motifs doivent traverser les bords.** Un galet dessiné près d'un bord est
+aussi dessiné de l'autre côté, si bien que la tuile se raccorde à elle-même. Les
+formes franchissent alors les jointures au lieu de s'arrêter dessus. Combiné à
+six variantes par terrain, cela suffit à faire disparaître le damier.
+
 ## 2. Les raccords entre terrains
 
 **Le signe qui trahit un prototype avant même la qualité du dessin.**
@@ -53,11 +86,15 @@ bords, la terre battue mord sur le sable, l'herbe reprend ses droits sur la
 terre. Les sols construits, eux, ne débordent sur rien : une dalle de pierre a
 un bord net, et c'est ce qui la fait lire comme un ouvrage humain.
 
-Deux pièges :
+Trois pièges :
 
 - un coin ne se dessine que si les deux côtés adjacents ne débordent pas déjà,
   sinon on empile deux liserés et chaque angle vire au noir ;
-- les débordements s'empilent du moins prioritaire au plus prioritaire.
+- les débordements s'empilent du moins prioritaire au plus prioritaire ;
+- **le liseré doit onduler.** Une bande d'épaisseur constante fait tout de
+  suite « masque calculé ». Sur la grève d'Ultima VII, l'herbe mord sur le
+  sable par avancées et reculs irréguliers : deux octaves de bruit ajoutées à
+  la distance suffisent à rompre la régularité.
 
 ## 3. La densité de détail
 
