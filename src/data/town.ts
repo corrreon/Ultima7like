@@ -147,6 +147,19 @@ function place(world: World, shape: string, tx: number, ty: number, init: Partia
   return obj;
 }
 
+/**
+ * Pose un objet sur le plateau du meuble qui occupe deja la tuile.
+ *
+ * Le lift ne sert pas qu'a empiler : c'est lui qui produit le decalage
+ * diagonal d'une demi-tuile vers le haut et la gauche, donc la seule chose qui
+ * distingue a l'ecran un pain pose sur une table d'un pain tombe a ses pieds.
+ */
+function onTable(world: World, shape: string, tx: number, ty: number): GameObject {
+  const obj = place(world, shape, tx, ty);
+  obj.tz = 1;
+  return obj;
+}
+
 function stampBuilding(world: World, plan: Blueprint): void {
   const height = plan.rows.length;
   const width = Math.max(...plan.rows.map((r) => r.length));
@@ -344,8 +357,11 @@ function furnishInteriors(world: World, rng: Rng): void {
       for (let tx = region.x0 + 1; tx < region.x1; tx++) {
         const here = floorObjectsAt(world, tx, ty);
 
-        // Vaisselle sur une table sur deux.
-        if (here.some((o) => o.shapeId === 'table') && rng.chance(0.55)) {
+        // Vaisselle sur une table sur deux — mais seulement sur une table nue.
+        // Le moteur n'a pas de position sous-tuile : deux objets poses sur la
+        // meme case au meme lift sont dessines au meme point, et le second
+        // masque purement et simplement le premier.
+        if (here.length === 1 && here[0]!.shapeId === 'table' && rng.chance(0.55)) {
           const dishes = place(world, 'dishes', tx, ty);
           dishes.tz = 1;
           continue;
@@ -411,11 +427,15 @@ function fillContainers(world: World): void {
 
   // Quelques objets simplement poses : la table de taverne doit ressembler a
   // une table de taverne.
-  place(world, 'bread', 28, 27, {});
-  place(world, 'ale', 34, 27, {});
-  place(world, 'apple', 36, 31, {});
+  //
+  // `tz = 1` monte l'objet sur le plateau. Sans lui il est dessine au pied du
+  // meuble, a hauteur de plancher, et se lit comme tombe par terre — c'est le
+  // decalage diagonal de la hauteur qui fait toute la difference.
+  onTable(world, 'bread', 28, 27);
+  onTable(world, 'ale', 34, 27);
+  onTable(world, 'apple', 36, 31);
   place(world, 'hammer', 60, 32, {});
-  place(world, 'bread', 32, 54, {});
+  onTable(world, 'bread', 32, 54);
 }
 
 /** Construit la carte complete. */

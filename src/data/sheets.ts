@@ -13,6 +13,13 @@ import type { SheetDef } from '../render/atlas';
  * de haut. En regle generale, prendre l'emprise au sol de la shape
  * (`footprint[0]`) comme point de depart, puis ajuster a l'oeil.
  *
+ * **Les objets transportables prennent une fraction de tuile.** Une emprise
+ * d'une tuile veut dire qu'on ne peut pas en poser deux sur la meme case ;
+ * elle ne veut pas dire que la miche de pain fait la largeur de la table. Un
+ * objet dessine a `1` ecrase le meuble qui le porte et le rend invisible :
+ * pain 0,5, pomme 0,35, chope 0,4. C'est le defaut le plus visible d'une
+ * planche qu'on vient de brancher.
+ *
  * `margin` est le bord ignore autour de chaque cellule, en fraction de la
  * cellule. Il vaut 2 % par defaut, ce qui suffit a avaler les traits de grille
  * que les modeles d'image dessinent malgre la consigne — sans ce retrait, un
@@ -80,7 +87,7 @@ export const SHEETS: SheetDef[] = [
       { shape: 'barrel', cell: 2, tilesWide: 1 },
       { shape: 'crate', cell: 3, tilesWide: 1 },
       { shape: 'sack', cell: 4, tilesWide: 1 },
-      { shape: 'bag', cell: 7, tilesWide: 1 },
+      { shape: 'bag', cell: 7, tilesWide: 0.6 },
     ],
   },
   {
@@ -93,7 +100,7 @@ export const SHEETS: SheetDef[] = [
     rows: 3,
     entries: [
       { shape: 'anvil', cell: 0, tilesWide: 1 },
-      { shape: 'hammer', cell: 2, tilesWide: 1 },
+      { shape: 'hammer', cell: 2, tilesWide: 0.6 },
     ],
   },
   {
@@ -103,11 +110,11 @@ export const SHEETS: SheetDef[] = [
     columns: 3,
     rows: 3,
     entries: [
-      { shape: 'bread', cell: 0, tilesWide: 1 },
-      { shape: 'ham', cell: 2, tilesWide: 1 },
-      { shape: 'apple', cell: 4, tilesWide: 1 },
-      { shape: 'ale', cell: 5, tilesWide: 1 },
-      { shape: 'dishes', cell: 7, tilesWide: 1 },
+      { shape: 'bread', cell: 0, tilesWide: 0.5 },
+      { shape: 'ham', cell: 2, tilesWide: 0.7 },
+      { shape: 'apple', cell: 4, tilesWide: 0.35 },
+      { shape: 'ale', cell: 5, tilesWide: 0.4 },
+      { shape: 'dishes', cell: 7, tilesWide: 0.75 },
     ],
   },
   {
@@ -120,10 +127,10 @@ export const SHEETS: SheetDef[] = [
     columns: 3,
     rows: 3,
     entries: [
-      { shape: 'sword', cell: 1, tilesWide: 1 },
-      { shape: 'shield', frame: 0, cell: 6, tilesWide: 1 },
-      { shape: 'shield', frame: 1, cell: 5, tilesWide: 1 },
-      { shape: 'shield', frame: 2, cell: 7, tilesWide: 1 },
+      { shape: 'sword', cell: 1, tilesWide: 0.75 },
+      { shape: 'shield', frame: 0, cell: 6, tilesWide: 0.8 },
+      { shape: 'shield', frame: 1, cell: 5, tilesWide: 0.8 },
+      { shape: 'shield', frame: 2, cell: 7, tilesWide: 0.8 },
     ],
   },
   {
@@ -136,7 +143,7 @@ export const SHEETS: SheetDef[] = [
     entries: [
       { shape: 'lamppost', cell: 0, tilesWide: 1 },
       { shape: 'sconce', frame: 0, cell: 1, tilesWide: 1 },
-      { shape: 'torch', cell: 5, tilesWide: 1 },
+      { shape: 'torch', cell: 5, tilesWide: 0.5 },
     ],
   },
   {
@@ -163,16 +170,16 @@ export const SHEETS: SheetDef[] = [
     columns: 3,
     rows: 3,
     entries: [
-      { shape: 'mushroom', cell: 0, tilesWide: 1 },
-      { shape: 'tuft', frame: 0, cell: 1, tilesWide: 1 },
-      { shape: 'tuft', frame: 1, cell: 6, tilesWide: 1 },
-      { shape: 'flower', frame: 0, cell: 2, tilesWide: 1 },
-      { shape: 'flower', frame: 1, cell: 2, tilesWide: 1 },
-      { shape: 'flower', frame: 2, cell: 8, tilesWide: 1 },
+      { shape: 'mushroom', cell: 0, tilesWide: 0.5 },
+      { shape: 'tuft', frame: 0, cell: 1, tilesWide: 0.8 },
+      { shape: 'tuft', frame: 1, cell: 6, tilesWide: 0.8 },
+      { shape: 'flower', frame: 0, cell: 2, tilesWide: 0.6 },
+      { shape: 'flower', frame: 1, cell: 2, tilesWide: 0.6 },
+      { shape: 'flower', frame: 2, cell: 8, tilesWide: 0.6 },
       { shape: 'bush', cell: 3, tilesWide: 1 },
       { shape: 'pot', cell: 4, tilesWide: 1 },
-      { shape: 'pebble', frame: 0, cell: 5, tilesWide: 1 },
-      { shape: 'pebble', frame: 1, cell: 5, tilesWide: 1 },
+      { shape: 'pebble', frame: 0, cell: 5, tilesWide: 0.45 },
+      { shape: 'pebble', frame: 1, cell: 5, tilesWide: 0.45 },
     ],
   },
   {
@@ -181,9 +188,9 @@ export const SHEETS: SheetDef[] = [
     columns: 3,
     rows: 3,
     entries: [
-      { shape: 'gold', cell: 0, tilesWide: 1 },
-      { shape: 'key', cell: 5, tilesWide: 1 },
-      { shape: 'lute', cell: 8, tilesWide: 1 },
+      { shape: 'gold', cell: 0, tilesWide: 0.5 },
+      { shape: 'key', cell: 5, tilesWide: 0.5 },
+      { shape: 'lute', cell: 8, tilesWide: 0.7 },
     ],
   },
 ];
