@@ -58,6 +58,8 @@ export class Ui {
   combat = false;
   /** Le monde est fige. */
   paused = false;
+  /** Compagnons du groupe, pour la jauge de vie de chacun. */
+  party: Actor[] = [];
 
   private readonly log: string[] = [];
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
@@ -185,7 +187,7 @@ export class Ui {
    */
   private drawVitals(ctx: CanvasRenderingContext2D, avatar: Actor, width: number, height: number): void {
     const blesse = avatar.hp < avatar.maxHp;
-    if (!blesse && !this.combat && !this.paused) return;
+    if (!blesse && !this.combat && !this.paused && this.party.length === 0) return;
 
     const w = Math.min(160, width - 16);
     const x = 8;
@@ -207,9 +209,26 @@ export class Ui {
       ctx.font = '12px ui-monospace, monospace';
     }
 
+    // Les compagnons sous l'Avatar, en plus petit. On ne montre que leur vie :
+    // c'est la seule chose sur laquelle le joueur puisse encore agir, en
+    // reculant ou en rengainant.
+    let py = y + 20;
+    for (const compagnon of this.party) {
+      const part = Math.max(0, compagnon.hp / compagnon.maxHp);
+      ctx.fillStyle = 'rgba(12, 10, 8, 0.72)';
+      ctx.fillRect(x, py, w, 10);
+      ctx.fillStyle = part > 0.5 ? '#5f7a3c' : part > 0.25 ? '#a2802f' : '#8e2f26';
+      ctx.fillRect(x + 2, py + 2, Math.round((w - 4) * part), 6);
+      ctx.fillStyle = '#bcae8c';
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillText(compagnon.displayName, x + w + 8, py + 9);
+      ctx.font = '12px ui-monospace, monospace';
+      py += 13;
+    }
+
     if (this.combat) {
       ctx.fillStyle = '#d08a50';
-      ctx.fillText('Arme au clair', x, y + 30);
+      ctx.fillText('Arme au clair', x, py + 12);
     }
     if (this.paused) {
       // Au tiers superieur, et non au centre : l'Avatar est au centre, et une

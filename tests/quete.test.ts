@@ -44,7 +44,7 @@ describe('la quete du luth', () => {
     const flags = new Set<string>();
     const logs: string[] = [];
     const effet = (nom: string, npc: Actor) =>
-      applyEffect(nom, { avatar, npc, flags, log: (t) => logs.push(t) });
+      applyEffect(nom, { avatar, npc, flags, log: (t) => logs.push(t), acteurs: world.actors });
 
     // 1. Mireille parle du bourg, puis de Basile : on apprend le luth perdu.
     const chezMireille = parler(mireille, flags, avatar);
@@ -102,7 +102,13 @@ describe('la quete du luth', () => {
   it('refuse l\'effet plutot que d\'achever la quete dans le vide', () => {
     const { avatar, basile } = monde();
     const flags = new Set<string>();
-    const done = applyEffect('rendre_luth', { avatar, npc: basile, flags, log: () => {} });
+    const done = applyEffect('rendre_luth', {
+      avatar,
+      npc: basile,
+      flags,
+      log: () => {},
+      acteurs: [],
+    });
     expect(done).toBe(false);
     expect(flags.has('luth_rendu')).toBe(false);
   });

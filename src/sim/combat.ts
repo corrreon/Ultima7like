@@ -35,6 +35,17 @@ export const PORTEE = 1;
  */
 export const VIGILANCE = 5;
 
+/**
+ * Distance au-dela de laquelle on abandonne sa cible.
+ *
+ * Sans elle, une cible prise une fois le reste pour toujours : le combattant
+ * la suit a l'autre bout de la carte, et un compagnon finit par quitter le
+ * groupe pour courir apres un brigand qui detale. On remarque a cinq tuiles,
+ * on lache a douze — l'ecart evite de reprendre et relacher la meme cible a
+ * chaque pas.
+ */
+export const ABANDON = 12;
+
 export interface Coup {
   touche: boolean;
   degats: number;
@@ -103,6 +114,11 @@ export function faction(actor: Actor): string {
 /** L'acteur se bat-il, ou subit-il ? */
 export function combattant(actor: Actor): boolean {
   return getShape(actor.shapeId).combatant === true;
+}
+
+/** La cible est-elle encore poursuivable ? */
+export function cibleValide(actor: Actor, cible: Actor | null): cible is Actor {
+  return cible !== null && estHostile(actor, cible) && distance(actor, cible) <= ABANDON;
 }
 
 /** Distance de Tchebychev, celle de la grille : la diagonale vaut un pas. */

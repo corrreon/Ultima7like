@@ -51,6 +51,8 @@ export interface SavedActor extends SavedObject {
   sp: number;
   act: string;
   conv?: string;
+  /** Compagnon. Absent pour la quasi-totalite des acteurs, d'ou l'optionnel. */
+  party?: boolean;
   sched?: ScheduleEntry[];
   home?: { tx: number; ty: number };
 }
@@ -106,6 +108,7 @@ function saveActor(actor: Actor): SavedActor {
     act: actor.activity,
   };
   if (actor.conversationId !== undefined) out.conv = actor.conversationId;
+  if (actor.inParty) out.party = true;
   if (actor.schedule.length > 0) out.sched = actor.schedule;
   if (actor.home !== undefined) out.home = actor.home;
   return out;
@@ -214,6 +217,7 @@ function loadActor(data: SavedActor): Actor {
   actor.py = data.py;
   actor.dir = data.dir as Actor['dir'];
   actor.hp = data.hp;
+  actor.inParty = data.party === true;
   actor.activity = data.act as Actor['activity'];
   for (const child of data.c ?? []) {
     const loaded = loadObject(child);

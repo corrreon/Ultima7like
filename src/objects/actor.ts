@@ -52,6 +52,14 @@ export class Actor extends GameObject {
    * permanent. Le drapeau evite d'avoir a distinguer les deux dans l'IA.
    */
   inCombat = false;
+  /**
+   * L'acteur suit l'Avatar au lieu de son emploi du temps.
+   *
+   * Sauvegarde, contrairement aux autres etats de combat : un groupe qui se
+   * disperserait au rechargement obligerait a refaire toutes les
+   * conversations de recrutement.
+   */
+  inParty = false;
   schedule: ScheduleEntry[];
   conversationId?: string;
   home?: { tx: number; ty: number };

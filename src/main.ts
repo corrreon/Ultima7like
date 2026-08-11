@@ -22,6 +22,7 @@ import { findPath } from './sim/pathfind';
 import { ConversationState, getConversation } from './script/conversation';
 import { applyEffect, journal, refreshInventoryFlags } from './script/quests';
 import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
+import { accorderCombat, compagnons, congedier } from './sim/party';
 import { use, type UsecodeContext } from './script/usecode';
 import { buildTown } from './data/town';
 import { populate } from './data/npcs';
@@ -314,12 +315,19 @@ class Game {
   private makeAi(): ScheduleAI {
     const ai = new ScheduleAI(this.world, this.clock, this.rng);
     ai.onCoup = (attaquant, cible, coup) => this.onCoup(attaquant, cible, coup);
+    // Le meneur suit l'Avatar d'une partie a l'autre : apres un chargement,
+    // c'est un autre objet, et un groupe qui suivrait l'ancien resterait plante
+    // sur place.
+    ai.leader = this.avatar;
     return ai;
   }
 
   private toggleCombat(): void {
     this.avatar.inCombat = !this.avatar.inCombat;
     this.avatar.target = null;
+    // Le groupe degaine avec le meneur. Un compagnon qui garderait l'arme au
+    // fourreau pendant qu'on se bat serait au mieux inutile.
+    accorderCombat(this.avatar, this.world.actors);
     this.ui.combat = this.avatar.inCombat;
     this.ui.addLog(this.avatar.inCombat ? 'Vous degainez.' : 'Vous rengainez.');
   }
@@ -380,6 +388,10 @@ class Game {
       return;
     }
 
+    // Un compagnon qui tombe quitte le groupe avant tout le reste : sans quoi
+    // les suivants garderaient sa place en formation et marcheraient en file
+    // autour d'un absent.
+    if (cible.inParty) congedier(cible);
     this.ui.addLog(`${cible.displayName} s'effondre.`);
     for (const objet of depouiller(cible)) this.world.addObject(objet);
     const index = this.world.actors.indexOf(cible);
@@ -728,6 +740,7 @@ class Game {
       npc,
       flags: this.flags,
       log: (text) => this.ui.addLog(text),
+      acteurs: this.world.actors,
     });
     if (!done) this.ui.addLog('Rien ne se passe.');
     else if (this.ui.journal) this.ui.journal = journal(this.flags);
@@ -740,6 +753,7 @@ class Game {
     this.renderer.render(this.world, this.avatar, this.clock, this.canvas.width, this.canvas.height);
 
     ctx.setTransform(this.uiScale, 0, 0, this.uiScale, 0, 0);
+    this.ui.party = compagnons(this.world.actors);
     this.ui.render(
       ctx,
       this.avatar,

@@ -4,13 +4,14 @@ import { Actor } from '../objects/actor';
 import type { World } from '../world/world';
 import { findPath } from './pathfind';
 import { currentEntry } from './schedule';
+import { DISTANCE_PERDUE, LAISSE, place } from './party';
 import {
   CADENCE,
   PORTEE,
   cibleLaPlusProche,
+  cibleValide,
   combattant,
   distance,
-  estHostile,
   faction,
   frapper,
   type Coup,
@@ -39,6 +40,9 @@ export class ScheduleAI {
    * contente d'en tirer les consequences visibles — journal, mort, butin.
    */
   onCoup?: (attaquant: Actor, cible: Actor, coup: Coup) => void;
+
+  /** Meneur du groupe. Les compagnons le suivent au lieu de leur emploi du temps. */
+  leader: Actor | null = null;
 
   constructor(
     private readonly world: World,
@@ -73,10 +77,57 @@ export class ScheduleAI {
     actor.thinkTimer -= dt;
     if (actor.thinkTimer <= 0) {
       actor.thinkTimer = 0.5 + this.rng.next();
-      this.think(actor);
+      // Un compagnon n'a plus d'emploi du temps : il suit. C'est tout
+      // l'interet de recruter quelqu'un — ne pas avoir a le piloter.
+      if (actor.inParty && this.leader) this.follow(actor, this.leader);
+      else this.think(actor);
     }
 
     ScheduleAI.moveAlongPath(actor, dt, this.world);
+  }
+
+  /**
+   * Suit le meneur, en gardant sa place dans la formation.
+   *
+   * On ne recalcule pas un chemin a chaque pensee : le meneur bouge en
+   * permanence, et repartir de zero toutes les demi-secondes donne une marche
+   * hachee et coute cher. Tant que le compagnon est a bonne distance, il ne
+   * fait rien.
+   */
+  private follow(actor: Actor, leader: Actor): void {
+    actor.activity = 'stand';
+    actor.atPost = false;
+
+    const cible = place(leader, this.rank(actor));
+    const ecart = Math.max(Math.abs(actor.tx - cible.tx), Math.abs(actor.ty - cible.ty));
+    if (ecart <= LAISSE) {
+      actor.path.length = 0;
+      actor.faceTowards(leader.px, leader.py);
+      return;
+    }
+
+    // Perdu de vue : on repart de la position du meneur plutot que de sa
+    // place, sinon un compagnon coince derriere un mur vise indefiniment une
+    // case qu'il ne peut pas atteindre.
+    const loin = ecart > DISTANCE_PERDUE;
+    const but = loin ? { tx: leader.tx, ty: leader.ty } : cible;
+    if (actor.path.length === 0 || loin) {
+      actor.path = findPath(this.world, { tx: actor.tx, ty: actor.ty }, but, {
+        actor,
+        tolerance: loin ? 1 : 0,
+        openDoors: true,
+      });
+    }
+  }
+
+  /** Rang du compagnon dans le groupe, qui fixe sa place en formation. */
+  private rank(actor: Actor): number {
+    let index = 0;
+    for (const autre of this.world.actors) {
+      if (autre === actor) return index;
+      if (autre.inParty && autre.isAlive) index++;
+    }
+    return index;
   }
 
   /**
@@ -89,7 +140,7 @@ export class ScheduleAI {
     const cherche = actor.inCombat || faction(actor) !== 'ville';
     if (!cherche) return false;
 
-    if (!actor.target || !estHostile(actor, actor.target)) {
+    if (!cibleValide(actor, actor.target)) {
       actor.target = cibleLaPlusProche(actor, this.world.actors);
     }
     const cible = actor.target;

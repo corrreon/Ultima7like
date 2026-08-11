@@ -1,5 +1,6 @@
 import type { Actor } from '../objects/actor';
 import { GameObject } from '../objects/gameobject';
+import { congedier, groupePlein, peutRejoindre, recruter } from '../sim/party';
 
 /**
  * Quetes et effets de dialogue.
@@ -79,6 +80,8 @@ export interface EffectContext {
   flags: Set<string>;
   /** Ligne a afficher dans le journal de bord. */
   log: (text: string) => void;
+  /** Tous les acteurs du monde, pour ce qui touche au groupe. */
+  acteurs: readonly Actor[];
 }
 
 /**
@@ -114,6 +117,30 @@ export function applyEffect(effect: string, ctx: EffectContext): boolean {
         ctx.log('Vous etes trop charge : les pieces tombent a vos pieds.');
       }
       ctx.log(`${ctx.npc.displayName} retrouve son luth et vous glisse 30 pieces.`);
+      return true;
+    }
+
+    case 'recruter': {
+      if (!peutRejoindre(ctx.npc, ctx.acteurs)) {
+        // On le dit, au lieu de laisser la conversation faire comme si.
+        ctx.log(
+          groupePlein(ctx.acteurs)
+            ? 'Votre groupe est au complet.'
+            : `${ctx.npc.displayName} ne peut pas vous suivre.`,
+        );
+        return false;
+      }
+      recruter(ctx.npc, ctx.avatar);
+      ctx.flags.add(`compagnon_${ctx.npc.conversationId ?? ctx.npc.shapeId}`);
+      ctx.log(`${ctx.npc.displayName} se joint a vous.`);
+      return true;
+    }
+
+    case 'congedier': {
+      if (!ctx.npc.inParty) return false;
+      congedier(ctx.npc);
+      ctx.flags.delete(`compagnon_${ctx.npc.conversationId ?? ctx.npc.shapeId}`);
+      ctx.log(`${ctx.npc.displayName} vous quitte.`);
       return true;
     }
 

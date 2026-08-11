@@ -132,7 +132,7 @@ defineConversation({
   // « rendre » ne s'affiche que si le joueur a vraiment le luth sur lui :
   // condition sur le monde, pas sur ce qui a ete dit. Elle disparait a la
   // seconde ou l'objet change de mains.
-  initial: ['nom', 'chanson', 'luth', 'rendre', 'ce_soir', 'nuit', 'adieu'],
+  initial: ['nom', 'chanson', 'luth', 'rendre', 'ce_soir', 'suivre', 'rester', 'nuit', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -169,6 +169,20 @@ defineConversation({
       once: true,
     },
     {
+      id: 'suivre',
+      label: 'M\'accompagner',
+      text: 'Vous voulez de moi sur les routes ? Je ne vaux pas grand-chose une epee a la main, mais je connais toutes les chansons. Allons-y.',
+      requires: ['luth_rendu'],
+      effect: 'recruter',
+    },
+    {
+      id: 'rester',
+      label: 'Rester ici',
+      text: 'Comme vous voudrez. Je retourne a mes cordes.',
+      requires: ['compagnon_basile'],
+      effect: 'congedier',
+    },
+    {
       id: 'nuit',
       label: 'La nuit',
       text: 'Prenez une torche si vous sortez apres le couvre-feu. Les reverberes ne vont pas jusqu\'a l\'etang, et l\'eau est froide.',
@@ -182,7 +196,7 @@ defineConversation({
   id: 'jehan',
   greeting: 'Halte. ... Non, rien. Circulez, ou parlez, mais decidez-vous.',
   farewell: 'Bonne route. Et pas de tapage apres la nuit tombee.',
-  initial: ['nom', 'garde', 'epee', 'adieu'],
+  initial: ['nom', 'garde', 'epee', 'brigands', 'suivre', 'rester', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -208,6 +222,27 @@ defineConversation({
       text: 'Commandee, oui. Payee... moins clairement. Ne repetez pas cela a Aldric, il a la rancune longue et le bras court.',
       requires: ['sait_epee'],
       once: true,
+    },
+    {
+      id: 'brigands',
+      label: 'Les brigands',
+      text: 'Trois, au sud-ouest, campes sous les arbres. Ils detroussent les colporteurs et rentrent avant la nuit. A un contre trois je n\'y vais pas ; a deux, c\'est autre chose.',
+      once: true,
+      sets: ['sait_brigands'],
+    },
+    {
+      id: 'suivre',
+      label: 'Venir avec moi',
+      text: 'Le poste tiendra sans moi une journee. Passez devant, je surveille vos arrieres.',
+      requires: ['sait_brigands'],
+      effect: 'recruter',
+    },
+    {
+      id: 'rester',
+      label: 'Reprendre votre poste',
+      text: 'Ce n\'est pas trop tot. La porte ne se garde pas toute seule.',
+      requires: ['compagnon_jehan'],
+      effect: 'congedier',
     },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],

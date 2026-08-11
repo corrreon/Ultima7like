@@ -5,9 +5,11 @@ import { GameObject } from '../src/objects/gameobject';
 import { buildTown } from '../src/data/town';
 import { populate } from '../src/data/npcs';
 import {
+  ABANDON,
   POINGS,
   chanceDeToucher,
   cibleLaPlusProche,
+  cibleValide,
   combattant,
   degatsArme,
   depouiller,
@@ -118,6 +120,27 @@ describe('combat', () => {
     expect(cibleLaPlusProche(avatar, acteurs, 1)).toBeNull();
     // Un garde ne voit pas d'ennemi dans l'Avatar.
     expect(cibleLaPlusProche(ami, [avatar, ami])).toBeNull();
+  });
+
+  it('lache une cible qui s\'eloigne trop', () => {
+    // Sans cela, une cible prise une fois le reste pour toujours : on la suit
+    // a l'autre bout de la carte, et un compagnon quitte le groupe pour
+    // courir apres un brigand qui detale.
+    const avatar = acteur('avatar', 10, 10);
+    const proche = acteur('brigand', 12, 10);
+    expect(cibleValide(avatar, proche)).toBe(true);
+
+    proche.tx = 10 + ABANDON;
+    expect(cibleValide(avatar, proche)).toBe(true); // pile a la limite
+    proche.tx = 10 + ABANDON + 1;
+    expect(cibleValide(avatar, proche)).toBe(false);
+
+    // Un mort et un allie ne sont jamais des cibles valides.
+    expect(cibleValide(avatar, null)).toBe(false);
+    expect(cibleValide(avatar, acteur('guard', 11, 10))).toBe(false);
+    const mort = acteur('brigand', 11, 10);
+    mort.hp = 0;
+    expect(cibleValide(avatar, mort)).toBe(false);
   });
 
   it('fait tomber au sol ce que portait le mort', () => {

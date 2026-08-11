@@ -94,9 +94,26 @@ tuiles les uns des autres avec une vigilance de sept, chargeaient toujours en
 bloc : c'est le **nombre d'adversaires simultanés**, et non les dégâts, qui
 décide d'un combat en temps réel.
 
-## Étape suivante — la boucle de jeu
+## Fait — le groupe (v0.7)
 
-- [ ] **Groupe** : compagnons recrutables, formation, IA de suivi
+Le combat rendait la chose nécessaire : un homme seul contre trois n'a aucune
+chance, quel que soit le réglage des dégâts. Deux compagnons au maximum — ce
+n'est pas une limite technique mais une limite de contenu, au-delà il n'y a
+plus assez d'habitants nommés pour que recruter veuille dire quelque chose.
+
+- [x] Recrutement et congé par le dialogue, avec une raison chacun : Jehan
+      accompagne qui va au campement, Basile suit qui lui a rendu son luth
+- [x] Formation qui tourne avec le meneur, les compagnons dans son dos — un
+      compagnon qui marche devant bloque le passage, les acteurs étant solides
+- [x] Le groupe dégaine et rengaine avec le meneur ; un barde reste désarmé
+- [x] Jauge de vie par compagnon
+- [x] Appartenance au groupe sauvegardée — un groupe qui se disperserait au
+      rechargement obligerait à refaire toutes les conversations
+
+Mesuré en jeu : à deux, un brigand tombe en cinq secondes contre dix-huit en
+solo, et l'Avatar y laisse seize points de vie au lieu de vingt-quatre.
+
+## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
 - [ ] **Commerce** : achat/vente à partir de `shape.value`, bourse des PNJ
 - [ ] **Magie** : réactifs, grimoire, sorts comme usecode
