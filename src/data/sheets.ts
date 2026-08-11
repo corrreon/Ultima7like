@@ -57,28 +57,8 @@ import type { SheetDef } from '../render/atlas';
  *    contrainte de coherence avec ses voisins : c'est de loin le remplacement
  *    le plus facile, et celui qui change le plus la presence d'un personnage.
  *
- * Exemple, pour une planche de 3x3 dont les cellules seraient : 0 dos immobile,
- * 1 dos en pas, 2 face immobile, 3 face en pas, 4 profil est immobile,
- * 5 profil est en pas, 6 le portrait.
- *
- * ```ts
- * {
- *   url: 'sheets/avatar.png',
- *   columns: 3,
- *   rows: 3,
- *   entries: [
- *     { shape: 'avatar', frame: 0, cell: 0, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 1, cell: 1, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 2, cell: 4, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 3, cell: 5, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 4, cell: 2, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 5, cell: 3, tilesWide: 1, group: 'avatar' },
- *     { shape: 'avatar', frame: 6, cell: 4, tilesWide: 1, group: 'avatar', mirror: true },
- *     { shape: 'avatar', frame: 7, cell: 5, tilesWide: 1, group: 'avatar', mirror: true },
- *     { shape: 'avatar', cell: 6, tilesWide: 1, portrait: true },
- *   ],
- * },
- * ```
+ * La fonction `personnage` ci-dessous applique ces trois regles ; il suffit
+ * de lui passer une planche et une shape.
  *
  * **Une case sans shape correspondante reste dans la planche, inutilisee.**
  * Elle ne coute rien et attend que le registre s'etoffe. C'est le cas ici du
@@ -90,7 +70,59 @@ import type { SheetDef } from '../render/atlas';
  * du lingot, de la gemme, de la bague, de l'amulette, du parchemin et du
  * livre.
  */
+/**
+ * Planche de personnage : six poses, un cadre commun, deux miroirs.
+ *
+ * Les six cellules sont, dans l'ordre de lecture : dos immobile, dos en pas,
+ * face immobile, face en pas, profil est immobile, profil est en pas.
+ *
+ * Le moteur, lui, range ses frames en `direction * 2 + pose` avec les
+ * directions dos, est, face, ouest. Les deux ordres ne coincident donc pas, et
+ * les profils ouest n'existent pas sur la planche : ce sont les profils est
+ * retournes. Cette table est ecrite une fois ici plutot que recopiee pour
+ * chaque habitant — c'est precisement le genre de correspondance qu'on finit
+ * par se tromper en la repetant.
+ *
+ * `tilesWide` se regle par personnage, et pas une fois pour toutes. La mise a
+ * l'echelle se fait sur la largeur : a largeur egale, un personnage large sort
+ * plus court qu'un personnage mince. Laisses a 1, le forgeron — l'homme le
+ * plus massif du bourg — se retrouvait le plus petit de douze pixels. Les
+ * valeurs ci-dessous egalisent les hauteurs a l'ecran, et laissent au forgeron
+ * les quelques pixels qui lui reviennent.
+ */
+function personnage(url: string, shape: string, tilesWide = 1): SheetDef {
+  const poses: Array<[frame: number, cell: number, mirror: boolean]> = [
+    [0, 0, false], // dos, immobile
+    [1, 1, false], // dos, en pas
+    [2, 4, false], // est, immobile
+    [3, 5, false], // est, en pas
+    [4, 2, false], // face, immobile
+    [5, 3, false], // face, en pas
+    [6, 4, true], // ouest, immobile — miroir de l'est
+    [7, 5, true], // ouest, en pas
+  ];
+  return {
+    url,
+    columns: 3,
+    rows: 3,
+    entries: poses.map(([frame, cell, mirror]) => ({
+      shape,
+      frame,
+      cell,
+      tilesWide,
+      group: shape,
+      ...(mirror ? { mirror: true } : {}),
+    })),
+  };
+}
+
 export const SHEETS: SheetDef[] = [
+  personnage('sheets/avatar.png', 'avatar'),
+  personnage('sheets/villageois.png', 'townsman'),
+  personnage('sheets/villageoise.png', 'townswoman', 1.05),
+  personnage('sheets/garde.png', 'guard', 1.12),
+  personnage('sheets/forgeron.png', 'smith', 1.28),
+  personnage('sheets/brigand.png', 'brigand', 1.1),
   {
     // Portraits de dialogue. Ils ne sont pas sur fond magenta : chaque cellule
     // est un portrait plein cadre sur fond sombre, et c'est voulu — le
@@ -116,26 +148,6 @@ export const SHEETS: SheetDef[] = [
       { shape: 'aldric', cell: 4, tilesWide: 3.25, portrait: true },
       { shape: 'jehan', cell: 3, tilesWide: 3.25, portrait: true },
       { shape: 'basile', cell: 7, tilesWide: 3.25, portrait: true },
-    ],
-  },
-  {
-    // Personnage : six poses, un cadre commun, deux miroirs.
-    //
-    // L'ordre des frames du moteur est `direction * 2 + pose`, avec les
-    // directions dos, est, face, ouest — il ne suit donc pas l'ordre de
-    // lecture de la planche, qui va par paires dos / face / profil.
-    url: 'sheets/avatar.png',
-    columns: 3,
-    rows: 3,
-    entries: [
-      { shape: 'avatar', frame: 0, cell: 0, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 1, cell: 1, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 2, cell: 4, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 3, cell: 5, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 4, cell: 2, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 5, cell: 3, tilesWide: 1, group: 'avatar' },
-      { shape: 'avatar', frame: 6, cell: 4, tilesWide: 1, group: 'avatar', mirror: true },
-      { shape: 'avatar', frame: 7, cell: 5, tilesWide: 1, group: 'avatar', mirror: true },
     ],
   },
   {

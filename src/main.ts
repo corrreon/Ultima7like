@@ -12,7 +12,7 @@ import { Input, type PointerDown } from './input/input';
 import { TouchControls } from './input/touch';
 import { Actor } from './objects/actor';
 import { GameObject } from './objects/gameobject';
-import { buildArt, overridePortrait, overrideSprite } from './render/art';
+import { buildArt, getPortrait, getSprite, overridePortrait, overrideSprite } from './render/art';
 import { loadSheets } from './render/atlas';
 import { SHEETS } from './data/sheets';
 import { Renderer } from './render/renderer';
@@ -791,6 +791,11 @@ loop.start();
 // et laisserait croire que le chargement n'a rien fait.
 (window as unknown as { u7: unknown }).u7 = {
   game,
+  // Acces aux sprites : c'est par la qu'on verifie qu'un personnage charge
+  // depuis une planche a bien la taille et le cadrage attendus, sans avoir a
+  // deduire des pixels d'une capture d'ecran.
+  getSprite,
+  getPortrait,
   get world() {
     return game.world;
   },

@@ -17,14 +17,19 @@ sprites générés par code et se contente d'un avertissement dans la console.
 
 ## Les planches
 
-Elles sont là, déclarées dans `src/data/sheets.ts`, et couvrent 63 sprites.
+Elles sont là, déclarées dans `src/data/sheets.ts`, et couvrent 104 sprites.
 Une planche absente ou illisible n'empêcherait pas de jouer : la console
 signalerait la planche manquante et le jeu garderait ses sprites générés.
 
 | Fichier | Contenu |
 | --- | --- |
 | `portraits.png` | 9 portraits de dialogue, plein cadre sur fond sombre |
-| `avatar.png` | l'Avatar : dos, dos en pas, face, face en pas, profil est, profil est en pas |
+| `avatar.png` | l'Avatar |
+| `villageois.png` | Basile et les villageois |
+| `villageoise.png` | Mireille et les villageoises |
+| `garde.png` | Jehan et les gardes |
+| `forgeron.png` | Aldric |
+| `brigand.png` | les brigands |
 | `mobilier.png` | chaise, tabouret, table, table de banquet, lit, lit à baldaquin, bibliothèque, buffet, tapis |
 | `contenants.png` | coffre fermé, coffre ouvert, tonneau, caisse, sac de grain, panier, jarre, sacoche, étagère |
 | `nourriture.png` | pain, fromage, jambon, poulet rôti, pomme, chope, bouteille, couvert, marmite |
@@ -37,6 +42,12 @@ signalerait la planche manquante et le jeu garderait ses sprites générés.
 
 L'ordre est celui de la lecture, ligne par ligne : c'est lui qui donne l'index
 `cell`. Les cases sans shape correspondante restent inutilisées, sans dommage.
+
+Les six planches de personnages partagent la même disposition : six cases —
+dos immobile, dos en pas, face immobile, face en pas, profil est immobile,
+profil est en pas — et les trois dernières vides. Les profils ouest sont
+obtenus par miroir, et les six cases d'un personnage reçoivent un cadre commun
+pour que rien ne sautille d'une pose à l'autre.
 
 ## D'une image générée au fichier posé ici
 

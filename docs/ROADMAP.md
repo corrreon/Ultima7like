@@ -46,8 +46,8 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [x] Personnages : cadre commun entre frames (`group`), miroir du profil
       (`mirror`), portraits de dialogue (`portrait`), portrait cherché au nom
       du personnage avant celui de son espèce
-- [x] Portraits des neuf visages, et l'Avatar en huit frames
-- [ ] Les cinq autres personnages qui marchent
+- [x] Portraits des neuf visages, et les six habitants dessinés, marche
+      comprise — 104 sprites peints en tout
 
 ## Fait — la première quête jouable (v0.5)
 
