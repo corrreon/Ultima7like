@@ -17,17 +17,48 @@ import type { Sprite } from './art';
  * on peut la retirer sans ambiguite.
  */
 
-/** Fond a retirer : magenta pur, avec une tolerance pour la compression. */
+/** Fond a retirer : magenta pur. */
 export const KEY_COLOR = { r: 255, g: 0, b: 255 };
-const KEY_TOLERANCE = 60;
 
-/** Le pixel appartient-il au fond a detourer ? */
+/**
+ * Le pixel appartient-il au fond a detourer ?
+ *
+ * On ne compare pas a `KEY_COLOR` a une tolerance pres : en pratique les
+ * planches generees n'ont pas un fond parfaitement uni — la teinte derive d'une
+ * cellule a l'autre, parfois jusqu'a un rose franchement plus clair, et une
+ * tolerance assez large pour l'absorber commencerait a mordre dans les objets.
+ *
+ * On teste plutot le *caractere magenta* : rouge et bleu forts et proches l'un
+ * de l'autre, vert faible. C'est vrai de tous les roses du fond, et d'aucune
+ * couleur utilisee dans les dessins — le cramoisi et l'or ont le bleu bas, le
+ * violet et le bleu roi ont le rouge bas.
+ */
 export function isKeyColor(r: number, g: number, b: number): boolean {
-  return (
-    Math.abs(r - KEY_COLOR.r) < KEY_TOLERANCE &&
-    Math.abs(g - KEY_COLOR.g) < KEY_TOLERANCE &&
-    Math.abs(b - KEY_COLOR.b) < KEY_TOLERANCE
-  );
+  return r > 180 && b > 180 && g < 120 && Math.abs(r - b) < 60;
+}
+
+/** Retrait par defaut sur le bord des cellules, en fraction de la cellule. */
+export const DEFAULT_MARGIN = 0.02;
+
+/**
+ * Rectangle utile d'une cellule, borde retiree.
+ *
+ * Les modeles d'image dessinent volontiers les traits de grille qu'on leur a
+ * pourtant interdits. Un seul pixel de trait le long du bord suffit a fausser
+ * tout le recadrage : `contentBounds` le voit comme du contenu et retourne la
+ * cellule entiere, ce qui donne un objet minuscule au milieu d'un vide, mal
+ * ancre. Rogner quelques pour cent avant de chercher le contenu coute un
+ * dessin qui touche le bord — ce que la consigne interdit de toute facon.
+ */
+export function insetRect(cellW: number, cellH: number, margin: number): Bounds {
+  const fraction = Math.min(Math.max(margin, 0), 0.4);
+  const inset = Math.floor(Math.min(cellW, cellH) * fraction);
+  return {
+    x: inset,
+    y: inset,
+    width: Math.max(1, cellW - inset * 2),
+    height: Math.max(1, cellH - inset * 2),
+  };
 }
 
 export interface Bounds {
@@ -109,6 +140,12 @@ export interface SheetDef {
   url: string;
   columns: number;
   rows: number;
+  /**
+   * Bord ignore autour de chaque cellule, en fraction de la cellule.
+   * Vaut `DEFAULT_MARGIN` par defaut, ce qui absorbe les traits de grille.
+   * A mettre a 0 pour une planche dont les dessins touchent le bord.
+   */
+  margin?: number;
   entries: AtlasEntry[];
 }
 
@@ -147,6 +184,7 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
 
   const cellW = Math.floor(image.width / sheet.columns);
   const cellH = Math.floor(image.height / sheet.rows);
+  const inner = insetRect(cellW, cellH, sheet.margin ?? DEFAULT_MARGIN);
   const out: LoadedSprite[] = [];
 
   for (const entry of sheet.entries) {
@@ -154,8 +192,13 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
     const row = Math.floor(entry.cell / sheet.columns);
     if (row >= sheet.rows) continue;
 
-    const cell = sctx.getImageData(col * cellW, row * cellH, cellW, cellH);
-    const bounds = contentBounds(cell.data, cellW, cellH);
+    const cell = sctx.getImageData(
+      col * cellW + inner.x,
+      row * cellH + inner.y,
+      inner.width,
+      inner.height,
+    );
+    const bounds = contentBounds(cell.data, inner.width, inner.height);
     if (!bounds) continue; // cellule vide
 
     // Recadrage sur le contenu, puis detourage.

@@ -13,6 +13,12 @@ import type { SheetDef } from '../render/atlas';
  * de haut. En regle generale, prendre l'emprise au sol de la shape
  * (`footprint[0]`) comme point de depart, puis ajuster a l'oeil.
  *
+ * `margin` est le bord ignore autour de chaque cellule, en fraction de la
+ * cellule. Il vaut 2 % par defaut, ce qui suffit a avaler les traits de grille
+ * que les modeles d'image dessinent malgre la consigne — sans ce retrait, un
+ * trait le long du bord fait recadrer sur la cellule entiere et l'objet se
+ * retrouve minuscule et mal ancre. A mettre a 0 si un dessin touche le bord.
+ *
  * Une planche absente ou illisible n'empeche pas de jouer : le jeu garde ses
  * sprites procéduraux et se contente d'un avertissement dans la console.
  *
