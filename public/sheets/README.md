@@ -15,14 +15,16 @@ rapport d'aspect du dessin.
 Une planche absente ou illisible n'empêche pas de jouer : le moteur garde ses
 sprites générés par code et se contente d'un avertissement dans la console.
 
-## Les neuf planches
+## Les planches
 
-Elles sont là, déclarées dans `src/data/sheets.ts`, et couvrent 45 sprites.
+Elles sont là, déclarées dans `src/data/sheets.ts`, et couvrent 63 sprites.
 Une planche absente ou illisible n'empêcherait pas de jouer : la console
 signalerait la planche manquante et le jeu garderait ses sprites générés.
 
 | Fichier | Contenu |
 | --- | --- |
+| `portraits.png` | 9 portraits de dialogue, plein cadre sur fond sombre |
+| `avatar.png` | l'Avatar : dos, dos en pas, face, face en pas, profil est, profil est en pas |
 | `mobilier.png` | chaise, tabouret, table, table de banquet, lit, lit à baldaquin, bibliothèque, buffet, tapis |
 | `contenants.png` | coffre fermé, coffre ouvert, tonneau, caisse, sac de grain, panier, jarre, sacoche, étagère |
 | `nourriture.png` | pain, fromage, jambon, poulet rôti, pomme, chope, bouteille, couvert, marmite |

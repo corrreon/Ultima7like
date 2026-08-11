@@ -346,7 +346,13 @@ export class Ui {
     carvedFrame(ctx, x, y, w, panelH);
 
     // Portrait, mis a l'echelle en entier pour rester net.
-    const portrait = getPortrait(conv.npc.shapeId);
+    // Le portrait se cherche d'abord au nom du personnage, puis a defaut au
+    // nom de son espece. Dans Ultima VII chaque PNJ a son visage ; ici
+    // l'identifiant de conversation fait cette clef sans rien ajouter au
+    // modele ni au format de sauvegarde, ou il figure deja.
+    const portrait =
+      (conv.npc.conversationId ? getPortrait(conv.npc.conversationId) : undefined) ??
+      getPortrait(conv.npc.shapeId);
     let textX = x + 14;
     if (portrait && !narrow) {
       // On inscrit le portrait dans une boite fixe plutot que de le doubler

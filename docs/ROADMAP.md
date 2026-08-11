@@ -42,7 +42,12 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [x] Remplacement progressif et tolérant — une planche manquante n'empêche pas
       de jouer
 - [x] Déclaration des neuf planches : 45 cellules affectées à des shapes
-- [x] Les neuf planches, détourées et posées : 45 sprites peints
+- [x] Les neuf planches d'objets, détourées et posées
+- [x] Personnages : cadre commun entre frames (`group`), miroir du profil
+      (`mirror`), portraits de dialogue (`portrait`), portrait cherché au nom
+      du personnage avant celui de son espèce
+- [x] Portraits des neuf visages, et l'Avatar en huit frames
+- [ ] Les cinq autres personnages qui marchent
 
 ## Fait — la première quête jouable (v0.5)
 

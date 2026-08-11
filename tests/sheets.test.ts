@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SHEETS } from '../src/data/sheets';
 import { getShape, hasShape } from '../src/world/shapes';
+import '../src/data/dialogue';
+import { allConversations } from '../src/script/conversation';
 
 /**
  * Les declarations de planches sont du texte libre : rien, a l'execution, ne
@@ -15,8 +17,23 @@ describe('declarations de planches', () => {
   const entries = toutes.filter(({ entry }) => !entry.portrait);
 
   it('ne vise que des shapes existantes', () => {
-    for (const { entry } of toutes) {
+    for (const { entry } of entries) {
       expect(hasShape(entry.shape), `shape inconnue : ${entry.shape}`).toBe(true);
+    }
+  });
+
+  it('ne vise, pour un portrait, qu\'une shape ou un personnage connu', () => {
+    // Un portrait se cherche au nom du personnage avant celui de son espece :
+    // sa clef peut donc etre un identifiant de conversation. La verification
+    // reste utile — une clef inventee ne produirait aucune erreur, juste un
+    // portrait qui n'apparait jamais.
+    const noms = new Set(allConversations().map((c) => c.id));
+    for (const { entry } of toutes) {
+      if (!entry.portrait) continue;
+      expect(
+        hasShape(entry.shape) || noms.has(entry.shape),
+        `clef de portrait inconnue : ${entry.shape}`,
+      ).toBe(true);
     }
   });
 

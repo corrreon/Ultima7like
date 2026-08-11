@@ -92,6 +92,53 @@ import type { SheetDef } from '../render/atlas';
  */
 export const SHEETS: SheetDef[] = [
   {
+    // Portraits de dialogue. Ils ne sont pas sur fond magenta : chaque cellule
+    // est un portrait plein cadre sur fond sombre, et c'est voulu — le
+    // portrait garde son propre fond, seul le bord de cellule est retire.
+    //
+    // La clef est l'identifiant de **conversation** quand le personnage en a
+    // un, et l'identifiant de shape sinon. Un barde et un paysan sont deux
+    // `townsman` pour le moteur ; ils n'ont aucune raison d'avoir le meme
+    // visage.
+    url: 'sheets/portraits.png',
+    columns: 3,
+    rows: 3,
+    entries: [
+      { shape: 'avatar', cell: 0, tilesWide: 3.25, portrait: true },
+      { shape: 'townsman', cell: 1, tilesWide: 3.25, portrait: true },
+      { shape: 'townswoman', cell: 2, tilesWide: 3.25, portrait: true },
+      { shape: 'guard', cell: 3, tilesWide: 3.25, portrait: true },
+      { shape: 'smith', cell: 4, tilesWide: 3.25, portrait: true },
+      { shape: 'brigand', cell: 5, tilesWide: 3.25, portrait: true },
+      // Visages nommes. Le chef de bande et la vieille femme des cellules 6
+      // et 8 attendent, l'un un dialogue, l'autre son habitante.
+      { shape: 'mireille', cell: 2, tilesWide: 3.25, portrait: true },
+      { shape: 'aldric', cell: 4, tilesWide: 3.25, portrait: true },
+      { shape: 'jehan', cell: 3, tilesWide: 3.25, portrait: true },
+      { shape: 'basile', cell: 7, tilesWide: 3.25, portrait: true },
+    ],
+  },
+  {
+    // Personnage : six poses, un cadre commun, deux miroirs.
+    //
+    // L'ordre des frames du moteur est `direction * 2 + pose`, avec les
+    // directions dos, est, face, ouest — il ne suit donc pas l'ordre de
+    // lecture de la planche, qui va par paires dos / face / profil.
+    url: 'sheets/avatar.png',
+    columns: 3,
+    rows: 3,
+    entries: [
+      { shape: 'avatar', frame: 0, cell: 0, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 1, cell: 1, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 2, cell: 4, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 3, cell: 5, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 4, cell: 2, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 5, cell: 3, tilesWide: 1, group: 'avatar' },
+      { shape: 'avatar', frame: 6, cell: 4, tilesWide: 1, group: 'avatar', mirror: true },
+      { shape: 'avatar', frame: 7, cell: 5, tilesWide: 1, group: 'avatar', mirror: true },
+    ],
+  },
+  {
     // Planche 1. Aucun trait de grille, mais les dessins vont d'un bord a
     // l'autre de leur cellule : tout retrait les amputerait.
     //
