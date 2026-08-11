@@ -41,7 +41,8 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
       détourage du fond magenta, mise à l'échelle en tuiles
 - [x] Remplacement progressif et tolérant — une planche manquante n'empêche pas
       de jouer
-- [ ] Les planches elles-mêmes
+- [x] Déclaration des neuf planches : 45 cellules affectées à des shapes
+- [ ] Les fichiers PNG eux-mêmes
 
 ## Étape suivante — la boucle de jeu
 

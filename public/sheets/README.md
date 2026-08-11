@@ -17,13 +17,16 @@ sprites générés par code et se contente d'un avertissement dans la console.
 
 ## Fichiers attendus
 
-`src/data/sheets.ts` déclare déjà six planches. Tant que le PNG n'est pas là,
+`src/data/sheets.ts` déclare déjà neuf planches. Tant que le PNG n'est pas là,
 la console signale la planche manquante et le jeu garde ses sprites générés.
 
 | Fichier | Contenu |
 | --- | --- |
+| `mobilier.png` | chaise, tabouret, table, table de banquet, lit, lit à baldaquin, bibliothèque, buffet, tapis |
+| `contenants.png` | coffre fermé, coffre ouvert, tonneau, caisse, sac de grain, panier, jarre, sacoche, étagère |
 | `nourriture.png` | pain, fromage, jambon, poulet rôti, pomme, chope, bouteille, couvert, marmite |
 | `armes.png` | épée courte, épée longue, dague, hache, marteau, écu rond, écu en amande, heaume, arc |
+| `outils.png` | enclume, soufflet, marteau de forge, scie, pelle, fourche, faux, établi, meule |
 | `lumiere.png` | réverbère, applique, bougeoir, lampe à huile, brasero, torche, âtre, chaudron, bougie |
 | `exterieur.png` | puits, charrette, barrière, portail, abreuvoir, botte de foin, rondins, souche, seau |
 | `vegetation.png` | champignons, touffe, fleurs, buisson, plante en pot, caillou, branche, ruche, herbes |

@@ -34,12 +34,68 @@ import type { SheetDef } from '../render/atlas';
  *
  * **Une case sans shape correspondante reste dans la planche, inutilisee.**
  * Elle ne coute rien et attend que le registre s'etoffe. C'est le cas ici du
- * fromage, du poulet roti, de la bouteille de vin, de la marmite, de la dague,
- * de la hache, de l'arc, de la bougie, du chaudron, de l'abreuvoir, de la
- * botte de foin, du tas de rondins, de la souche, du seau, de la ruche, du
- * lingot, de la gemme, de la bague, de l'amulette, du parchemin et du livre.
+ * panier, de la jarre, de l'etagere murale, du fromage, du poulet roti, de la
+ * bouteille de vin, de la marmite, de la dague, de la hache, du marteau de
+ * guerre, de l'arc, du soufflet, de la scie, de la pelle, de la fourche, de la
+ * faux, de l'etabli, de la meule, de la bougie, du chaudron, de l'abreuvoir,
+ * de la botte de foin, du tas de rondins, de la souche, du seau, de la ruche,
+ * du lingot, de la gemme, de la bague, de l'amulette, du parchemin et du
+ * livre.
  */
 export const SHEETS: SheetDef[] = [
+  {
+    // Planche 1. Aucun trait de grille, mais les dessins vont d'un bord a
+    // l'autre de leur cellule : tout retrait les amputerait.
+    //
+    // La bibliotheque est posee avec l'une ou l'autre de ses deux frames selon
+    // la parite de la tuile ; le buffet fait la seconde, ce qui evite une
+    // rangee de bibliotheques identiques le long d'un mur.
+    url: 'sheets/mobilier.png',
+    columns: 3,
+    rows: 3,
+    margin: 0,
+    entries: [
+      { shape: 'chair', cell: 0, tilesWide: 1 },
+      { shape: 'stool', cell: 1, tilesWide: 1 },
+      { shape: 'table', cell: 2, tilesWide: 1 },
+      { shape: 'longtable', cell: 3, tilesWide: 2 },
+      { shape: 'bed', cell: 4, tilesWide: 1 },
+      { shape: 'canopybed', cell: 5, tilesWide: 2 },
+      { shape: 'bookshelf', frame: 0, cell: 6, tilesWide: 1 },
+      { shape: 'bookshelf', frame: 1, cell: 7, tilesWide: 1 },
+      { shape: 'rug', cell: 8, tilesWide: 3 },
+    ],
+  },
+  {
+    // Planche 2. Le coffre a deux frames, fermee puis ouverte, et la planche
+    // donne les deux — c'est ce qui rend le coffre lisible au moment ou on
+    // l'ouvre. La sacoche sert de `bag`, le contenant transportable.
+    url: 'sheets/contenants.png',
+    columns: 3,
+    rows: 3,
+    margin: 0,
+    entries: [
+      { shape: 'chest', frame: 0, cell: 0, tilesWide: 1 },
+      { shape: 'chest', frame: 1, cell: 1, tilesWide: 1 },
+      { shape: 'barrel', cell: 2, tilesWide: 1 },
+      { shape: 'crate', cell: 3, tilesWide: 1 },
+      { shape: 'sack', cell: 4, tilesWide: 1 },
+      { shape: 'bag', cell: 7, tilesWide: 1 },
+    ],
+  },
+  {
+    // Planche 5. Traits de grille bien visibles : on garde le retrait par
+    // defaut. Le marteau vient d'ici et non de la planche d'armes : la shape
+    // s'appelle « marteau de forge », c'est ce dessin-la et pas le marteau de
+    // guerre.
+    url: 'sheets/outils.png',
+    columns: 3,
+    rows: 3,
+    entries: [
+      { shape: 'anvil', cell: 0, tilesWide: 1 },
+      { shape: 'hammer', cell: 2, tilesWide: 1 },
+    ],
+  },
   {
     // Planche 3. Le fromage, le poulet, le vin et la marmite attendent leur
     // shape.
@@ -58,13 +114,13 @@ export const SHEETS: SheetDef[] = [
     // Planche 4. `shield` est la decoration murale des tavernes et des salles
     // de garde : ses trois frames sont tirees au hasard, il faut donc les
     // couvrir toutes les trois. Le heaume fait une troisieme piece credible a
-    // cote des deux ecus.
+    // cote des deux ecus. Le marteau de guerre reste inutilise, `hammer` etant
+    // servi par le marteau de forge de la planche 5.
     url: 'sheets/armes.png',
     columns: 3,
     rows: 3,
     entries: [
       { shape: 'sword', cell: 1, tilesWide: 1 },
-      { shape: 'hammer', cell: 4, tilesWide: 1 },
       { shape: 'shield', frame: 0, cell: 6, tilesWide: 1 },
       { shape: 'shield', frame: 1, cell: 5, tilesWide: 1 },
       { shape: 'shield', frame: 2, cell: 7, tilesWide: 1 },
