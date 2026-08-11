@@ -133,6 +133,34 @@ export interface AtlasEntry {
    * bibliotheque) de depasser leur emprise au sol.
    */
   tilesWide: number;
+  /**
+   * Cadrage commun a plusieurs cellules.
+   *
+   * Les entrees d'un meme groupe sont recadrees sur l'**union** de leurs
+   * contenus, et sortent donc toutes a la meme taille. C'est indispensable des
+   * qu'il s'agit de frames d'animation : les acteurs sont dessines ancres en
+   * bas a droite, et un recadrage serre cellule par cellule donnerait a chaque
+   * pose une hauteur differente — le personnage sautillerait a chaque pas et
+   * changerait de taille en tournant.
+   */
+  group?: string;
+  /**
+   * Retourne le dessin horizontalement.
+   *
+   * Un personnage vu de profil est le miroir exact de l'autre profil. Le
+   * declarer evite de demander deux dessins la ou un seul suffit — et surtout
+   * garantit une symetrie qu'aucun dessinateur, humain ou non, ne tient a la
+   * main.
+   */
+  mirror?: boolean;
+  /**
+   * L'entree remplace le **portrait** de la shape, pas son sprite de monde.
+   *
+   * Dans Ultima VII le portrait fait la moitie de la presence d'un
+   * personnage ; c'est aussi le dessin le plus facile a obtenir, un visage
+   * isole n'ayant aucune coherence a tenir avec ses voisins.
+   */
+  portrait?: boolean;
 }
 
 export interface SheetDef {
@@ -154,6 +182,8 @@ export interface LoadedSprite {
   shape: string;
   frame: number;
   sprite: Sprite;
+  /** Le sprite est un portrait de dialogue et non un sprite de monde. */
+  portrait: boolean;
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -172,6 +202,29 @@ function loadImage(url: string): Promise<HTMLImageElement> {
  * reduit avec interpolation devient une bouillie, et cela se voit
  * immediatement a cote des sprites procéduraux.
  */
+/** Union de deux rectangles. */
+export function unionBounds(a: Bounds, b: Bounds): Bounds {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+/**
+ * Decoupe une planche et retourne ses sprites.
+ *
+ * En deux passes : on mesure d'abord le contenu de chaque cellule, puis on
+ * recadre. Le detour est impose par les groupes — le cadre d'une frame depend
+ * de celui de ses voisines, et ne peut donc pas etre decide en la lisant seule.
+ *
+ * Le redimensionnement se fait au plus proche voisin : un dessin en pixel art
+ * reduit avec interpolation devient une bouillie, et cela se voit
+ * immediatement a cote des sprites procéduraux.
+ */
 export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
   const image = await loadImage(sheet.url);
 
@@ -185,7 +238,10 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
   const cellW = Math.floor(image.width / sheet.columns);
   const cellH = Math.floor(image.height / sheet.rows);
   const inner = insetRect(cellW, cellH, sheet.margin ?? DEFAULT_MARGIN);
-  const out: LoadedSprite[] = [];
+
+  // Premiere passe : contenu de chaque cellule, et cadre commun par groupe.
+  const mesures = new Map<AtlasEntry, { cell: ImageData; bounds: Bounds }>();
+  const groupes = new Map<string, Bounds>();
 
   for (const entry of sheet.entries) {
     const col = entry.cell % sheet.columns;
@@ -200,18 +256,31 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
     );
     const bounds = contentBounds(cell.data, inner.width, inner.height);
     if (!bounds) continue; // cellule vide
+    mesures.set(entry, { cell, bounds });
 
-    // Recadrage sur le contenu, puis detourage.
+    if (entry.group) {
+      const connu = groupes.get(entry.group);
+      groupes.set(entry.group, connu ? unionBounds(connu, bounds) : bounds);
+    }
+  }
+
+  // Seconde passe : recadrage, detourage, miroir, mise a l'echelle.
+  const out: LoadedSprite[] = [];
+  for (const entry of sheet.entries) {
+    const mesure = mesures.get(entry);
+    if (!mesure) continue;
+    const bounds = (entry.group ? groupes.get(entry.group) : undefined) ?? mesure.bounds;
+
     const cropped = document.createElement('canvas');
     cropped.width = bounds.width;
     cropped.height = bounds.height;
     const cctx = cropped.getContext('2d', { willReadFrequently: true })!;
-    cctx.putImageData(cell, -bounds.x, -bounds.y);
+    cctx.putImageData(mesure.cell, -bounds.x, -bounds.y);
     const cropData = cctx.getImageData(0, 0, bounds.width, bounds.height);
     keyOutBackground(cropData.data);
     cctx.putImageData(cropData, 0, 0);
 
-    // Mise a l'echelle du jeu.
+    // Mise a l'echelle du jeu, miroir compris.
     const targetW = Math.max(1, Math.round(entry.tilesWide * TILE_SIZE));
     const targetH = Math.max(1, Math.round((targetW * bounds.height) / bounds.width));
     const canvas = document.createElement('canvas');
@@ -219,12 +288,17 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
     canvas.height = targetH;
     const octx = canvas.getContext('2d')!;
     octx.imageSmoothingEnabled = false;
+    if (entry.mirror) {
+      octx.translate(targetW, 0);
+      octx.scale(-1, 1);
+    }
     octx.drawImage(cropped, 0, 0, targetW, targetH);
 
     out.push({
       shape: entry.shape,
       frame: entry.frame ?? 0,
       sprite: { canvas, width: targetW, height: targetH },
+      portrait: entry.portrait === true,
     });
   }
 
@@ -243,13 +317,13 @@ export async function loadSheet(sheet: SheetDef): Promise<LoadedSprite[]> {
  */
 export async function loadSheets(
   sheets: readonly SheetDef[],
-  override: (shape: string, frame: number, sprite: Sprite) => void,
+  override: (loaded: LoadedSprite) => void,
 ): Promise<number> {
   let count = 0;
   for (const sheet of sheets) {
     try {
       for (const loaded of await loadSheet(sheet)) {
-        override(loaded.shape, loaded.frame, loaded.sprite);
+        override(loaded);
         count++;
       }
     } catch (error) {

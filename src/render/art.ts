@@ -1655,6 +1655,16 @@ export function frameCount(shapeId: string): number {
 }
 
 /** Portrait de dialogue d'un acteur, ou undefined s'il n'en a pas. */
+/**
+ * Remplace le portrait de dialogue d'une shape.
+ *
+ * Sans equivalent de `frames` : un personnage n'a qu'un portrait, et c'est
+ * bien pour cela que c'est le dessin le plus facile a remplacer.
+ */
+export function overridePortrait(shapeId: string, sprite: Sprite): void {
+  portraits.set(shapeId, sprite);
+}
+
 export function getPortrait(shapeId: string): Sprite | undefined {
   return portraits.get(shapeId);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contentBounds, insetRect, isKeyColor, keyOutBackground } from '../src/render/atlas';
+import { contentBounds, insetRect, isKeyColor, keyOutBackground, unionBounds } from '../src/render/atlas';
 
 /** Fabrique une cellule remplie de magenta, avec un rectangle opaque dedans. */
 function cell(
@@ -61,6 +61,27 @@ describe('detourage des planches', () => {
     expect(insetRect(100, 100, 0)).toEqual({ x: 0, y: 0, width: 100, height: 100 });
     // Une marge absurde ne doit pas produire une cellule vide.
     expect(insetRect(40, 40, 5).width).toBeGreaterThan(0);
+  });
+
+  it('donne a un groupe de frames un cadre commun', () => {
+    // Les acteurs sont dessines ancres en bas a droite. Un recadrage serre
+    // cellule par cellule donnerait a chaque pose une hauteur differente : le
+    // personnage sautillerait a chaque pas et changerait de taille en tournant.
+    const debout = { x: 20, y: 10, width: 10, height: 30 };
+    const enPas = { x: 18, y: 12, width: 14, height: 28 };
+    const commun = unionBounds(debout, enPas);
+    expect(commun).toEqual({ x: 18, y: 10, width: 14, height: 30 });
+
+    // L'union contient bien chaque frame en entier.
+    for (const b of [debout, enPas]) {
+      expect(commun.x).toBeLessThanOrEqual(b.x);
+      expect(commun.y).toBeLessThanOrEqual(b.y);
+      expect(commun.x + commun.width).toBeGreaterThanOrEqual(b.x + b.width);
+      expect(commun.y + commun.height).toBeGreaterThanOrEqual(b.y + b.height);
+    }
+
+    // Et elle est stable quel que soit l'ordre de lecture des cellules.
+    expect(unionBounds(enPas, debout)).toEqual(commun);
   });
 
   it('ignore un trait de grille qui longe la cellule', () => {

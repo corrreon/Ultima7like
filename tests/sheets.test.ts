@@ -9,10 +9,13 @@ import { getShape, hasShape } from '../src/world/shapes';
  * jeu, sans un mot. D'ou ces verifications.
  */
 describe('declarations de planches', () => {
-  const entries = SHEETS.flatMap((sheet) => sheet.entries.map((entry) => ({ sheet, entry })));
+  const toutes = SHEETS.flatMap((sheet) => sheet.entries.map((entry) => ({ sheet, entry })));
+  // Un portrait ne fait pas partie des frames d'une shape : il n'y en a qu'un,
+  // et il ne suit pas la regle du « toutes les frames ou aucune ».
+  const entries = toutes.filter(({ entry }) => !entry.portrait);
 
   it('ne vise que des shapes existantes', () => {
-    for (const { entry } of entries) {
+    for (const { entry } of toutes) {
       expect(hasShape(entry.shape), `shape inconnue : ${entry.shape}`).toBe(true);
     }
   });

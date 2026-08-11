@@ -12,7 +12,7 @@ import { Input, type PointerDown } from './input/input';
 import { TouchControls } from './input/touch';
 import { Actor } from './objects/actor';
 import { GameObject } from './objects/gameobject';
-import { buildArt, overrideSprite } from './render/art';
+import { buildArt, overridePortrait, overrideSprite } from './render/art';
 import { loadSheets } from './render/atlas';
 import { SHEETS } from './data/sheets';
 import { Renderer } from './render/renderer';
@@ -133,7 +133,10 @@ class Game {
   /** Charge les planches de dessins, sans bloquer le demarrage. */
   private async loadArtwork(): Promise<void> {
     if (SHEETS.length === 0) return;
-    const replaced = await loadSheets(SHEETS, overrideSprite);
+    const replaced = await loadSheets(SHEETS, (loaded) => {
+      if (loaded.portrait) overridePortrait(loaded.shape, loaded.sprite);
+      else overrideSprite(loaded.shape, loaded.frame, loaded.sprite);
+    });
     if (replaced > 0) this.ui.addLog(`${replaced} dessins charges.`);
   }
 

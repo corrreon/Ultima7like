@@ -39,6 +39,47 @@ import type { SheetDef } from '../render/atlas';
  * a plusieurs frames, on affecte ce dessin a toutes ses frames — sauf a en
  * avoir un autre qui fasse une variante credible.
  *
+ * ## Les personnages, cas a part
+ *
+ * Un acteur a huit frames : quatre directions (dos, est, face, ouest) fois
+ * deux poses de marche, dans cet ordre — `frames[direction * 2 + pose]`.
+ *
+ * Trois precautions, sans lesquelles le resultat est inutilisable :
+ *
+ * 1. **`group`.** Les acteurs sont dessines ancres en bas a droite. Recadrees
+ *    chacune sur son contenu, deux poses n'ont pas la meme hauteur et le
+ *    personnage sautille a chaque pas, puis change de taille en tournant. Un
+ *    groupe commun leur donne le meme cadre.
+ * 2. **`mirror`.** Le profil ouest est le miroir exact du profil est. Le
+ *    demander en double, c'est demander une symetrie que personne ne tient a
+ *    la main — et payer six dessins la ou quatre suffisent.
+ * 3. **`portrait`.** Le portrait de dialogue est un dessin separe, sans
+ *    contrainte de coherence avec ses voisins : c'est de loin le remplacement
+ *    le plus facile, et celui qui change le plus la presence d'un personnage.
+ *
+ * Exemple, pour une planche de 3x3 dont les cellules seraient : 0 dos immobile,
+ * 1 dos en pas, 2 face immobile, 3 face en pas, 4 profil est immobile,
+ * 5 profil est en pas, 6 le portrait.
+ *
+ * ```ts
+ * {
+ *   url: 'sheets/avatar.png',
+ *   columns: 3,
+ *   rows: 3,
+ *   entries: [
+ *     { shape: 'avatar', frame: 0, cell: 0, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 1, cell: 1, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 2, cell: 4, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 3, cell: 5, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 4, cell: 2, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 5, cell: 3, tilesWide: 1, group: 'avatar' },
+ *     { shape: 'avatar', frame: 6, cell: 4, tilesWide: 1, group: 'avatar', mirror: true },
+ *     { shape: 'avatar', frame: 7, cell: 5, tilesWide: 1, group: 'avatar', mirror: true },
+ *     { shape: 'avatar', cell: 6, tilesWide: 1, portrait: true },
+ *   ],
+ * },
+ * ```
+ *
  * **Une case sans shape correspondante reste dans la planche, inutilisee.**
  * Elle ne coute rien et attend que le registre s'etoffe. C'est le cas ici du
  * panier, de la jarre, de l'etagere murale, du fromage, du poulet roti, de la
