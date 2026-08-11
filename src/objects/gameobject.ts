@@ -137,6 +137,24 @@ export class GameObject {
     return false;
   }
 
+  /**
+   * Premier objet du contenu, a n'importe quelle profondeur, verifiant le
+   * predicat.
+   *
+   * « Le joueur a-t-il un luth ? » ne se resout pas en parcourant le premier
+   * niveau : le luth peut etre dans une sacoche, elle-meme dans un sac. C'est
+   * la contrepartie des conteneurs recursifs, et toute condition portant sur ce
+   * que quelqu'un porte doit descendre l'arborescence.
+   */
+  findDeep(predicate: (obj: GameObject) => boolean): GameObject | null {
+    for (const child of this.contents) {
+      if (predicate(child)) return child;
+      const found = child.findDeep(predicate);
+      if (found) return found;
+    }
+    return null;
+  }
+
   /** Ajoute un objet au contenu, en le detachant d'abord de son parent. */
   add(obj: GameObject): boolean {
     if (!this.canAccept(obj)) return false;

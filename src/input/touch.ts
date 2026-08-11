@@ -19,7 +19,7 @@
  * d'inventaire.
  */
 
-export type TouchAction = 'act' | 'bag' | 'close';
+export type TouchAction = 'act' | 'bag' | 'journal' | 'close';
 
 interface Button {
   id: TouchAction;
@@ -63,6 +63,7 @@ export class TouchControls {
       { id: 'act', label: 'Agir', x: bx, y: by, radius: r },
       { id: 'bag', label: 'Sac', x: bx, y: by - gap, radius: r },
       { id: 'close', label: 'Fermer', x: bx - gap, y: by, radius: r },
+      { id: 'journal', label: 'Notes', x: bx - gap, y: by - gap, radius: r },
     ];
   }
 

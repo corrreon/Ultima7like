@@ -3,6 +3,7 @@ import type { Actor } from '../objects/actor';
 import type { GameObject } from '../objects/gameobject';
 import { getPortrait, getSprite } from './art';
 import type { ConversationState, Topic } from '../script/conversation';
+import type { QuestEntry } from '../script/quests';
 
 /**
  * Interface : fenetres de contenants, journal et dialogues.
@@ -51,6 +52,8 @@ export class Ui {
    */
   bottomInset = 0;
   conversation: { npc: Actor; state: ConversationState; reply: string } | null = null;
+  /** Journal de quetes ouvert. Ce qu'il montre est deduit des drapeaux. */
+  journal: QuestEntry[] | null = null;
 
   private readonly log: string[] = [];
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
@@ -93,6 +96,10 @@ export class Ui {
   }
 
   closeTop(): boolean {
+    if (this.journal) {
+      this.journal = null;
+      return true;
+    }
     if (this.conversation) {
       this.conversation = null;
       return true;
@@ -126,6 +133,7 @@ export class Ui {
     this.drawLog(ctx, width, height);
     for (const window of this.windows) this.drawWindow(ctx, window, width, height);
     if (this.conversation) this.drawConversation(ctx, width, height);
+    if (this.journal) this.drawJournal(ctx, width, height);
     if (this.held) this.drawHeld(ctx);
   }
 
@@ -327,6 +335,65 @@ export class Ui {
       this.topicRects.push({ x: tx - 4, y: ty - 12, w: tw, h: 18, topic });
       tx += tw + 8;
     }
+  }
+
+  /**
+   * Journal de quetes.
+   *
+   * Les etapes franchies restent lisibles, barrees d'une puce pleine ; la
+   * prochaine est mise en avant. Un journal qui n'afficherait que l'objectif
+   * courant obligerait a se souvenir du chemin parcouru, ce qui est
+   * exactement ce qu'un journal doit eviter.
+   */
+  private drawJournal(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const entries = this.journal!;
+    const w = Math.min(width - 48, 520);
+    const x = Math.round((width - w) / 2);
+    const lineHeight = 16;
+
+    // On compose d'abord, on dessine ensuite : la hauteur du panneau depend du
+    // repliage du texte, qui depend de la largeur.
+    const lines: Array<{ text: string; kind: 'titre' | 'faite' | 'suite' | 'vide' }> = [];
+    if (entries.length === 0) {
+      lines.push({ text: 'Rien a noter pour l\'instant.', kind: 'vide' });
+    }
+    for (const entry of entries) {
+      lines.push({
+        text: entry.done ? `${entry.def.title} — acheve` : entry.def.title,
+        kind: 'titre',
+      });
+      for (const step of entry.steps) {
+        for (const line of wrap(ctx, '• ' + step.text, w - 40)) lines.push({ text: line, kind: 'faite' });
+      }
+      if (entry.next) {
+        for (const line of wrap(ctx, '→ ' + entry.next.text, w - 40)) {
+          lines.push({ text: line, kind: 'suite' });
+        }
+      }
+    }
+
+    // 46 pour le titre, la hauteur des lignes, puis 26 pour la mention de
+    // fermeture : sans cette reserve la derniere etape se dessine dessus.
+    const panelH = 46 + lineHeight * lines.length + 26;
+    const y = Math.max(8, Math.round((height - panelH) / 2) - this.bottomInset);
+
+    ctx.fillStyle = 'rgba(20, 16, 11, 0.96)';
+    ctx.fillRect(x, y, w, panelH);
+    carvedFrame(ctx, x, y, w, panelH);
+
+    ctx.fillStyle = '#e2c98a';
+    ctx.fillText('Journal', x + 16, y + 24);
+
+    let ty = y + 46;
+    for (const line of lines) {
+      ctx.fillStyle =
+        line.kind === 'titre' ? '#e2c98a' : line.kind === 'suite' ? '#ddd0b0' : '#8f8064';
+      ctx.fillText(line.text, x + (line.kind === 'titre' ? 16 : 26), ty);
+      ty += lineHeight;
+    }
+
+    ctx.fillStyle = '#7a6a48';
+    ctx.fillText('J ou Echap : fermer', x + 16, y + panelH - 12);
   }
 
   private drawHeld(ctx: CanvasRenderingContext2D): void {

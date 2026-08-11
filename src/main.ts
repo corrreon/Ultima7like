@@ -20,6 +20,7 @@ import { Ui, type ContainerWindow } from './render/ui';
 import { ScheduleAI } from './sim/ai';
 import { findPath } from './sim/pathfind';
 import { ConversationState, getConversation } from './script/conversation';
+import { applyEffect, journal, refreshInventoryFlags } from './script/quests';
 import { use, type UsecodeContext } from './script/usecode';
 import { buildTown } from './data/town';
 import { populate } from './data/npcs';
@@ -113,8 +114,8 @@ class Game {
 
     this.ui.addLog(
       this.input.coarse
-        ? 'Stick : marcher · Toucher : prendre · Agir : utiliser'
-        : 'Clic : marcher · Double-clic : utiliser · I : sac · F5 : sauver',
+        ? 'Stick : marcher · Toucher : prendre · Agir : utiliser · Notes : journal'
+        : 'Clic : marcher · Double-clic : utiliser · I : sac · J : journal · F5 : sauver',
     );
 
     // Les vrais dessins arrivent apres coup et remplacent les sprites
@@ -255,6 +256,8 @@ class Game {
       this.ai.update(actor, dt);
     }
 
+    refreshInventoryFlags(this.avatar, this.flags);
+
     this.autosaveTimer -= dt;
     if (this.autosaveTimer <= 0) this.save(true);
 
@@ -266,6 +269,7 @@ class Game {
   private handleKeys(): void {
     for (const code of this.input.pressed) {
       if (code === 'KeyI') this.openBag();
+      else if (code === 'KeyJ') this.toggleJournal();
       else if (code === 'Escape') this.ui.closeTop();
       else if (code === 'KeyE' || code === 'Space') this.actNearby();
       else if (code === 'F5') this.save();
@@ -278,9 +282,14 @@ class Game {
     this.ui.openContainer(this.avatar, 'Sac de l\'Avatar');
   }
 
+  private toggleJournal(): void {
+    this.ui.journal = this.ui.journal ? null : journal(this.flags);
+  }
+
   private handleTouchButtons(): void {
     for (const action of this.touch.triggered) {
       if (action === 'bag') this.openBag();
+      else if (action === 'journal') this.toggleJournal();
       else if (action === 'close') this.ui.closeTop();
       else if (action === 'act') this.actNearby();
     }
@@ -572,7 +581,9 @@ class Game {
     this.avatar.faceTowards(npc.px, npc.py);
     this.ui.conversation = {
       npc,
-      state: new ConversationState(def, this.flags),
+      state: new ConversationState(def, this.flags, (shape) =>
+        this.avatar.findDeep((o) => o.shapeId === shape) !== null,
+      ),
       reply: def.greeting,
     };
   }
@@ -596,12 +607,21 @@ class Game {
     if (topic.effect) this.applyEffect(topic.effect, conv.npc);
   }
 
-  /** Effets de jeu declenches par un sujet de conversation. */
+  /**
+   * Effets de jeu declenches par un sujet de conversation.
+   *
+   * La logique vit dans `script/quests`, sans dependance au rendu : c'est ce
+   * qui permet de traverser une quete entiere dans un test, sans navigateur.
+   */
   private applyEffect(effect: string, npc: Actor): void {
-    if (effect === 'quete_luth') {
-      this.ui.addLog(`${npc.displayName} vous promet une chanson si vous lui rapportez son luth.`);
-      this.flags.add('quete_luth_active');
-    }
+    const done = applyEffect(effect, {
+      avatar: this.avatar,
+      npc,
+      flags: this.flags,
+      log: (text) => this.ui.addLog(text),
+    });
+    if (!done) this.ui.addLog('Rien ne se passe.');
+    else if (this.ui.journal) this.ui.journal = journal(this.flags);
   }
 
   // --- Rendu --------------------------------------------------------------

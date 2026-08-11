@@ -44,6 +44,28 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [x] Déclaration des neuf planches : 45 cellules affectées à des shapes
 - [x] Les neuf planches, détourées et posées : 45 sprites peints
 
+## Fait — la première quête jouable (v0.5)
+
+Le socle savait déjà tenir des drapeaux partagés ; il lui manquait de quoi
+boucler. Une quête complète demande trois choses qu'aucun dialogue ne fournit :
+une condition sur ce que le joueur **porte**, un effet qui **déplace un objet**
+d'un inventaire à l'autre, et une **réaction du monde** qui ne soit pas une
+ligne de texte.
+
+- [x] Condition `carries` sur un sujet : elle interroge l'inventaire à chaque
+      affichage, et fouille les conteneurs imbriqués
+- [x] Effets de quête dans un module pur, sans dépendance au rendu — c'est ce
+      qui rend une quête traversable en test
+- [x] Journal de quêtes (`J`), déduit des drapeaux et non d'un état parallèle
+- [x] Réaction du monde : un PNJ qui travaille avec un luth chante au lieu
+      d'annoncer qu'il se met à l'ouvrage
+- [x] Traversée de bout en bout en test, plus un contrôle d'intégrité sur tous
+      les arbres de dialogue
+
+Deux blocages réels sont sortis de cette traversée, invisibles jusque-là : le
+sujet qui démarrait la quête était inatteignable, et les PNJ n'annonçaient
+jamais leur arrivée à leur poste.
+
 ## Étape suivante — la boucle de jeu
 
 - [ ] **Combat** en temps réel avec pause, comme l'original : dégâts depuis

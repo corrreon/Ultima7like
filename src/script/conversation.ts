@@ -20,6 +20,14 @@ export interface Topic {
   once?: boolean;
   /** Le sujet n'apparait que si tous ces drapeaux sont poses. */
   requires?: string[];
+  /**
+   * Le sujet n'apparait que si le joueur porte un objet de cette shape.
+   *
+   * Un drapeau retient ce qui a ete dit ; il ne sait rien de ce qu'on a dans
+   * les mains. Rendre un objet est pourtant le geste le plus banal d'une
+   * quete, et il demande une condition sur le monde et non sur la memoire.
+   */
+  carries?: string;
   /** Drapeaux poses par ce sujet. */
   sets?: string[];
   /** Termine la conversation. */
@@ -49,6 +57,10 @@ export function getConversation(id: string): ConversationDef | undefined {
   return conversations.get(id);
 }
 
+export function allConversations(): ConversationDef[] {
+  return [...conversations.values()];
+}
+
 /**
  * Etat d'une conversation en cours.
  * Les drapeaux sont partages par tout le jeu : c'est ainsi qu'un PNJ peut
@@ -58,9 +70,15 @@ export class ConversationState {
   private readonly available = new Set<string>();
   private readonly used = new Set<string>();
 
+  /**
+   * `carries` est interroge a chaque affichage, et non capture au debut de la
+   * conversation : un sujet doit disparaitre au moment ou l'objet change de
+   * mains, sans quoi on rend deux fois le meme luth.
+   */
   constructor(
     readonly def: ConversationDef,
     private readonly flags: Set<string>,
+    private readonly carries: (shape: string) => boolean = () => false,
   ) {
     for (const id of def.initial) this.available.add(id);
   }
@@ -71,6 +89,7 @@ export class ConversationState {
       if (!this.available.has(topic.id)) return false;
       if (topic.once && this.used.has(topic.id)) return false;
       if (topic.requires && !topic.requires.every((flag) => this.flags.has(flag))) return false;
+      if (topic.carries && !this.carries(topic.carries)) return false;
       return true;
     });
   }

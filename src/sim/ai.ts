@@ -13,6 +13,15 @@ import { currentEntry } from './schedule';
  * s'il y est, il joue son activite. Rien de plus — la richesse apparente vient
  * de la densite des emplois du temps, pas de la complexite de l'IA.
  */
+
+/** Ce que chante un PNJ qui travaille avec un luth entre les mains. */
+const CHANSONS = [
+  '« ... et la dame du lac ne revint jamais... »',
+  '« Buvons, amis, la nuit est longue ! »',
+  '« Trois corbeaux sur un chene mort... »',
+  '« ... jusqu\'a l\'aube, jusqu\'a l\'aube... »',
+];
+
 export class ScheduleAI {
   constructor(
     private readonly world: World,
@@ -76,6 +85,7 @@ export class ScheduleAI {
     // le lit, l'enclume ou la table sont eux-memes des obstacles.
     const tolerance = 1;
     if (distance > tolerance) {
+      actor.atPost = false;
       if (actor.path.length === 0 || changed) {
         actor.path = findPath(this.world, { tx, ty }, { tx: entry.tx, ty: entry.ty }, {
           actor,
@@ -86,11 +96,37 @@ export class ScheduleAI {
     } else {
       actor.path.length = 0;
       actor.faceTowards(entry.tx, entry.ty);
-      if (changed) this.announce(actor);
+      // A l'arrivee, et non au depart : `changed` seul ne se verifie que si
+      // l'acteur se trouve deja sur place a l'heure dite, ce qui est rare. La
+      // plupart des repliques n'etaient donc jamais prononcees.
+      if (changed || !actor.atPost) this.announce(actor);
+      // Une annonce au seul changement d'activite ferait chanter le barde une
+      // fois a dix-neuf heures, puis plus rien de la soiree. Les autres
+      // metiers, eux, n'ont pas a repeter qu'ils travaillent.
+      else if (this.performs(actor) && actor.barkTimer <= 0 && this.rng.chance(0.05)) {
+        this.announce(actor);
+      }
+      actor.atPost = true;
     }
   }
 
+  /**
+   * Le travail d'un musicien qui a son instrument, c'est de jouer.
+   *
+   * La regle ne nomme personne : elle lit l'inventaire, donc n'importe qui a
+   * qui l'on confierait un luth chanterait a son poste.
+   */
+  private performs(actor: Actor): boolean {
+    return actor.activity === 'work' && actor.findDeep((o) => o.shapeId === 'lute') !== null;
+  }
+
   private announce(actor: Actor): void {
+    if (this.performs(actor)) {
+      const line = this.rng.pick(CHANSONS);
+      if (line) actor.say(line, 4);
+      return;
+    }
+
     const lines: Record<string, string[]> = {
       sleep: ['Quelle journee...', 'Au lit.'],
       eat: ['J\'ai une faim de loup.', 'Une chope, tavernier !'],

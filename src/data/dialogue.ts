@@ -13,7 +13,7 @@ defineConversation({
   id: 'mireille',
   greeting: 'Bienvenue au Chat Endormi ! Vous avez la mine de quelqu\'un qui a marche longtemps.',
   farewell: 'Revenez quand la nuit tombera, il y a toujours du feu ici.',
-  initial: ['nom', 'auberge', 'bourg', 'adieu'],
+  initial: ['nom', 'auberge', 'bourg', 'musique', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -60,6 +60,13 @@ defineConversation({
       text: 'Notre barde. Il dort tard, flane sur la place, et joue le soir. Il a perdu son luth trois fois cette annee.',
       once: true,
       sets: ['connait_luth'],
+    },
+    {
+      id: 'musique',
+      label: 'La musique de ce soir',
+      text: 'Vous lui avez rendu son luth ? Alors la salle sera pleine. Votre chope est offerte, c\'est la moindre des choses.',
+      requires: ['luth_rendu'],
+      once: true,
     },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],
@@ -115,7 +122,17 @@ defineConversation({
   id: 'basile',
   greeting: 'Ah, un visage neuf ! Restez donc, j\'ai justement besoin d\'une oreille.',
   farewell: 'Passez ce soir a la taverne, je jouerai quelque chose pour vous.',
-  initial: ['nom', 'chanson', 'nuit', 'adieu'],
+  // Tout sujet qui doit survivre au fait de sortir et de revenir appartient a
+  // `initial`, avec une condition — jamais a `reveals`. Une revelation ne dure
+  // que le temps d'une conversation, alors qu'un drapeau est definitif : le
+  // sujet « luth » etait revele par « chanson » tout en exigeant un drapeau
+  // qu'on ne peut obtenir qu'en allant voir Aldric, donc en sortant. Il etait
+  // proprement inatteignable, et la quete impossible a terminer.
+  //
+  // « rendre » ne s'affiche que si le joueur a vraiment le luth sur lui :
+  // condition sur le monde, pas sur ce qui a ete dit. Elle disparait a la
+  // seconde ou l'objet change de mains.
+  initial: ['nom', 'chanson', 'luth', 'rendre', 'ce_soir', 'nuit', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -127,7 +144,6 @@ defineConversation({
       id: 'chanson',
       label: 'Une chanson',
       text: 'Volontiers... si j\'avais mon luth. Je l\'ai encore egare. Il finit toujours par revenir, mais rarement de lui-meme.',
-      reveals: ['luth'],
       sets: ['connait_luth'],
     },
     {
@@ -137,6 +153,20 @@ defineConversation({
       requires: ['sait_ou_est_luth'],
       once: true,
       effect: 'quete_luth',
+    },
+    {
+      id: 'rendre',
+      label: 'Lui rendre son luth',
+      text: 'Vous l\'avez ! ... Vraiment, vous etes alle le chercher. Tenez, prenez cela, et venez ce soir : je vous dois une chanson.',
+      carries: 'lute',
+      effect: 'rendre_luth',
+    },
+    {
+      id: 'ce_soir',
+      label: 'Ce soir',
+      text: 'Des dix-neuf heures, au coin de l\'atre du Chat Endormi. Mireille garde toujours la meilleure place pour la musique.',
+      requires: ['luth_rendu'],
+      once: true,
     },
     {
       id: 'nuit',

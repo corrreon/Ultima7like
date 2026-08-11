@@ -33,6 +33,14 @@ export class Actor extends GameObject {
   /** Chemin restant a parcourir, en tuiles. */
   path: Array<{ tx: number; ty: number }> = [];
   activity: Activity = 'stand';
+  /**
+   * L'acteur est arrive au lieu que son emploi du temps lui prescrit.
+   *
+   * Purement transitoire, et volontairement hors sauvegarde : c'est la seule
+   * facon de distinguer « il vient d'arriver » de « il est la depuis une
+   * heure », et donc de ne prononcer sa replique qu'une fois.
+   */
+  atPost = false;
   schedule: ScheduleEntry[];
   conversationId?: string;
   home?: { tx: number; ty: number };
