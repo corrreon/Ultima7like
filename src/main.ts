@@ -12,7 +12,9 @@ import { Input, type PointerDown } from './input/input';
 import { TouchControls } from './input/touch';
 import { Actor } from './objects/actor';
 import { GameObject } from './objects/gameobject';
-import { buildArt } from './render/art';
+import { buildArt, overrideSprite } from './render/art';
+import { loadSheets } from './render/atlas';
+import { SHEETS } from './data/sheets';
 import { Renderer } from './render/renderer';
 import { Ui, type ContainerWindow } from './render/ui';
 import { ScheduleAI } from './sim/ai';
@@ -108,11 +110,24 @@ class Game {
     this.ui.addLog(
       restored ? 'Partie reprise.' : 'Vous arrivez au bourg de Valmoret.',
     );
+
     this.ui.addLog(
       this.input.coarse
         ? 'Stick : marcher · Toucher : prendre · Agir : utiliser'
         : 'Clic : marcher · Double-clic : utiliser · I : sac · F5 : sauver',
     );
+
+    // Les vrais dessins arrivent apres coup et remplacent les sprites
+    // procéduraux au fil de leur chargement. Le jeu est deja jouable a cet
+    // instant : rien ne bloque si une planche manque.
+    void this.loadArtwork();
+  }
+
+  /** Charge les planches de dessins, sans bloquer le demarrage. */
+  private async loadArtwork(): Promise<void> {
+    if (SHEETS.length === 0) return;
+    const replaced = await loadSheets(SHEETS, overrideSprite);
+    if (replaced > 0) this.ui.addLog(`${replaced} dessins charges.`);
   }
 
   // --- Sauvegarde ---------------------------------------------------------

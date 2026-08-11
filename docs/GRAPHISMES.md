@@ -267,11 +267,47 @@ régulier, donc un mur continu.
 
 ---
 
-## Pourquoi des tuiles de 16 pixels et non 8
+## Le chemin vers de vrais dessins
 
-Choix assumé : la densité de détail d'U7, à une résolution de tuile doublée.
+`src/render/atlas.ts` charge des planches PNG et remplace les sprites générés
+par code. Quatre décisions le rendent utilisable en pratique :
+
+**Le remplacement est progressif.** Le jeu démarre avec ses sprites
+procéduraux, puis les planches arrivent de façon asynchrone et écrasent, une
+cellule à la fois, les shapes qu'elles couvrent. Une planche à moitié faite
+améliore le jeu sans le casser — c'est la seule façon réaliste de remplacer
+cinquante sprites, et une planche absente n'empêche jamais de jouer.
+
+**Chaque cellule est recadrée sur son contenu réel.** Les modèles d'image ne
+centrent pas leurs objets au pixel près et laissent des marges inégales.
+Recadrer sur le dessin, plutôt que sur la cellule, est ce qui permet d'ancrer
+le sprite correctement dans le monde.
+
+**Le fond magenta est retiré avec tolérance.** La compression et le
+redimensionnement font dériver la teinte ; comparer à la couleur exacte
+laisserait une frange magenta bien visible autour de chaque objet.
+
+**La taille est donnée en tuiles, pas en pixels.** `tilesWide` fixe la largeur
+voulue dans le jeu, la hauteur suit le rapport d'aspect. C'est ce qui permet à
+une bibliothèque de n'occuper qu'une tuile au sol tout en se dessinant sur
+trois de haut.
+
+## Pourquoi des tuiles de 32 pixels
+
+Les tuiles sont passées de 16 à 32 px pour accueillir de vrais dessins sans que
+le détail parte à la réduction — un objet généré à 600 px réduit à 16 px n'est
+plus qu'une tache colorée.
+
+L'astuce qui a évité de redessiner les cinquante sprites existants : les
+fonctions de dessin procédural continuent de placer leurs pixels dans un repère
+de **16 px**, et `makeSprite` agrandit d'un facteur entier à la fin. Un
+agrandissement au plus proche voisin conserve exactement l'aspect pixel, donc le
+rendu est identique — mais l'atlas, lui, arrive en résolution native.
+
+## Note historique : pourquoi pas 8 pixels
+
 Les tuiles de 8 pixels du jeu d'origine supposent un écran de 320×200 ; sur un
-écran moderne il faut de toute façon agrandir. Travailler directement en 16
+écran moderne il faut de toute façon agrandir. Travailler directement en 32
 donne de la place pour le détail sans multiplier les facteurs d'échelle.
 
 Le zoom, lui, s'adapte : 24 tuiles visibles en largeur sur ordinateur, 13 sur

@@ -7,12 +7,16 @@
  *    « superchunks » de 16x16 chunks (soit les 192 fichiers u7chunks/u7map) ;
  *  - la hauteur (« lift ») va de 0 a 15 et decale le sprite en diagonale.
  *
- * On garde la meme structure logique, avec des tuiles de 16 px pour rester
- * lisible sur un ecran moderne.
+ * On garde la meme structure logique, avec des tuiles de 32 px : assez pour
+ * accueillir de vrais dessins (voir src/render/atlas.ts) sans que le detail
+ * parte a la reduction. Les sprites procéduraux sont, eux, dessines sur une
+ * base de 16 px puis agrandis au plus proche voisin — l'aspect est identique
+ * et cela evite de replacer a la main chaque pixel de la cinquantaine de
+ * sprites existants.
  */
 
 /** Taille d'une tuile en pixels logiques. */
-export const TILE_SIZE = 16;
+export const TILE_SIZE = 32;
 
 /** Decalage ecran, en pixels, applique par niveau de hauteur (lift). */
 export const LIFT_OFFSET = TILE_SIZE / 2;

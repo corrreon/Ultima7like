@@ -14,7 +14,10 @@ import type { ConversationState, Topic } from '../script/conversation';
  * glisser-deposer complet tout en gardant le meme ressenti.
  */
 
-const SLOT = 34;
+// Assez large pour afficher un sprite de 32 px a l'echelle 1:1. Reduire un
+// dessin en pixel art d'un facteur non entier le rend mou — autant lui laisser
+// la place.
+const SLOT = 40;
 const PADDING = 8;
 const TITLE_H = 18;
 const COLUMNS = 5;

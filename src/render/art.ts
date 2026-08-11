@@ -37,22 +37,47 @@ export interface Sprite {
 
 type Ctx2D = CanvasRenderingContext2D;
 
+/**
+ * Unite de dessin des sprites procéduraux, en pixels.
+ *
+ * Elle reste figee a 16 alors que la tuile du moteur fait desormais 32 : toutes
+ * les fonctions de dessin ci-dessous placent leurs pixels dans ce repere, et
+ * `makeSprite` agrandit d'un facteur entier a la fin. Sans cela, passer la
+ * tuile a 32 aurait demande de replacer a la main chaque pixel des cinquante et
+ * quelques sprites — pour un resultat identique, puisqu'un agrandissement au
+ * plus proche voisin conserve exactement l'aspect pixel.
+ *
+ * Les vrais dessins, eux, arrivent par l'atlas en resolution native : ils ne
+ * passent pas par ce chemin (voir src/render/atlas.ts).
+ */
+const T = 16;
+
+/** Facteur d'agrandissement des sprites procéduraux. */
+const ART_SCALE = Math.max(1, Math.round(TILE_SIZE / T));
+
 function makeSprite(width: number, height: number, draw: (ctx: Ctx2D) => void): Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
+  const base = document.createElement('canvas');
+  base.width = width;
+  base.height = height;
+  const ctx = base.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
   draw(ctx);
-  return { canvas, width, height };
+
+  if (ART_SCALE === 1) return { canvas: base, width, height };
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * ART_SCALE;
+  canvas.height = height * ART_SCALE;
+  const out = canvas.getContext('2d')!;
+  out.imageSmoothingEnabled = false;
+  out.drawImage(base, 0, 0, canvas.width, canvas.height);
+  return { canvas, width: canvas.width, height: canvas.height };
 }
 
 function px(ctx: Ctx2D, x: number, y: number, w: number, h: number, color: string): void {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 }
-
-const T = TILE_SIZE;
 
 // --- Terrains -------------------------------------------------------------
 
@@ -1586,6 +1611,25 @@ function missingSprite(shape: ShapeDef): Sprite {
     ctx.font = '8px monospace';
     ctx.fillText(shape.id.slice(0, 2), 3, 11);
   });
+}
+
+/**
+ * Remplace un sprite procédural par un vrai dessin issu d'une planche.
+ *
+ * Le remplacement est **partiel et progressif** : chaque cellule d'atlas
+ * ecrase une frame, les autres continuent d'utiliser le procédural. Une
+ * planche a moitie faite ameliore donc le jeu sans le casser, ce qui est la
+ * seule facon realiste de remplacer cinquante sprites.
+ */
+export function overrideSprite(shapeId: string, frame: number, sprite: Sprite): void {
+  const frames = atlas.get(shapeId);
+  if (!frames) {
+    atlas.set(shapeId, [sprite]);
+    return;
+  }
+  // On complete le tableau si la frame visee n'existe pas encore.
+  while (frames.length <= frame) frames.push(frames[frames.length - 1] ?? sprite);
+  frames[frame] = sprite;
 }
 
 export function getSprite(shapeId: string, frame: number): Sprite {

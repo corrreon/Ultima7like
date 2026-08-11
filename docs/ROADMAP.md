@@ -32,6 +32,17 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [ ] Reste ouvert : un état explicite pour les scripts d'usecode non
       atomiques, le jour où il faudra sauvegarder au milieu d'une cinématique
 
+## Fait — le chemin vers de vrais dessins (v0.4)
+
+- [x] Tuiles portées de 16 à 32 px, sans redessiner l'existant : les sprites
+      procéduraux gardent un repère de 16 px et sont agrandis au plus proche
+      voisin
+- [x] Chargeur d'atlas : découpage d'une grille, recadrage sur le contenu réel,
+      détourage du fond magenta, mise à l'échelle en tuiles
+- [x] Remplacement progressif et tolérant — une planche manquante n'empêche pas
+      de jouer
+- [ ] Les planches elles-mêmes
+
 ## Étape suivante — la boucle de jeu
 
 - [ ] **Combat** en temps réel avec pause, comme l'original : dégâts depuis
