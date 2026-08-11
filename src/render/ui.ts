@@ -349,9 +349,17 @@ export class Ui {
     const portrait = getPortrait(conv.npc.shapeId);
     let textX = x + 14;
     if (portrait && !narrow) {
-      const scale = 2;
-      const pw = portrait.width * scale;
-      const ph = portrait.height * scale;
+      // On inscrit le portrait dans une boite fixe plutot que de le doubler
+      // aveuglement : un portrait charge depuis une planche n'a aucune raison
+      // d'avoir la taille du portrait procédural, et un facteur fixe le ferait
+      // deborder du panneau. Le facteur est arrondi a l'entier tant qu'il tient
+      // — reduire du pixel art d'un facteur fractionnaire le rend mou.
+      const boxW = 104;
+      const boxH = panelH - 28;
+      const brut = Math.min(boxW / portrait.width, boxH / portrait.height);
+      const scale = brut >= 1 ? Math.floor(brut) : brut;
+      const pw = Math.round(portrait.width * scale);
+      const ph = Math.round(portrait.height * scale);
       ctx.drawImage(portrait.canvas, x + 12, y + 14, pw, ph);
       carvedFrame(ctx, x + 12, y + 14, pw, ph);
       textX = x + 12 + pw + 14;
