@@ -41,6 +41,17 @@ export class Actor extends GameObject {
    * heure », et donc de ne prononcer sa replique qu'une fois.
    */
   atPost = false;
+  /** Temps restant avant de pouvoir frapper a nouveau, en secondes. */
+  attackCooldown = 0;
+  /** Cible en cours. Transitoire : elle se retrouve seule au coup suivant. */
+  target: Actor | null = null;
+  /**
+   * L'acteur cherche le combat.
+   *
+   * Pour l'Avatar c'est un choix du joueur ; pour un brigand, c'est son etat
+   * permanent. Le drapeau evite d'avoir a distinguer les deux dans l'IA.
+   */
+  inCombat = false;
   schedule: ScheduleEntry[];
   conversationId?: string;
   home?: { tx: number; ty: number };

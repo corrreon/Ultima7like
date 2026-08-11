@@ -54,6 +54,10 @@ export class Ui {
   conversation: { npc: Actor; state: ConversationState; reply: string } | null = null;
   /** Journal de quetes ouvert. Ce qu'il montre est deduit des drapeaux. */
   journal: QuestEntry[] | null = null;
+  /** L'Avatar a degaine. */
+  combat = false;
+  /** Le monde est fige. */
+  paused = false;
 
   private readonly log: string[] = [];
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
@@ -130,6 +134,7 @@ export class Ui {
     ctx.textBaseline = 'alphabetic';
 
     this.drawStatus(ctx, avatar, clock, width);
+    this.drawVitals(ctx, avatar, width, height);
     this.drawLog(ctx, width, height);
     for (const window of this.windows) this.drawWindow(ctx, window, width, height);
     if (this.conversation) this.drawConversation(ctx, width, height);
@@ -169,6 +174,57 @@ export class Ui {
     ctx.fillStyle = avatar.isOverloaded ? '#d66655' : '#a89974';
     ctx.fillText(weight, x + 10, 8 + lineHeight * 2);
     ctx.font = '12px ui-monospace, monospace';
+  }
+
+  /**
+   * Points de vie, et etat du combat.
+   *
+   * Une jauge plutot qu'un nombre : en combat temps reel on ne lit pas un
+   * chiffre, on voit une barre baisser. Elle n'apparait qu'une fois entame ou
+   * degaine, pour ne pas encombrer une promenade.
+   */
+  private drawVitals(ctx: CanvasRenderingContext2D, avatar: Actor, width: number, height: number): void {
+    const blesse = avatar.hp < avatar.maxHp;
+    if (!blesse && !this.combat && !this.paused) return;
+
+    const w = Math.min(160, width - 16);
+    const x = 8;
+    const y = 8;
+
+    if (blesse || this.combat) {
+      ctx.fillStyle = 'rgba(12, 10, 8, 0.72)';
+      ctx.fillRect(x, y, w, 14);
+      const part = Math.max(0, avatar.hp / avatar.maxHp);
+      ctx.fillStyle = part > 0.5 ? '#7a9a4a' : part > 0.25 ? '#c8a03a' : '#b03a30';
+      ctx.fillRect(x + 2, y + 2, Math.round((w - 4) * part), 10);
+      ctx.strokeStyle = '#5c4a2c';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 13);
+
+      ctx.fillStyle = '#e8dcc0';
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillText(`${avatar.hp} / ${avatar.maxHp}`, x + w + 8, y + 11);
+      ctx.font = '12px ui-monospace, monospace';
+    }
+
+    if (this.combat) {
+      ctx.fillStyle = '#d08a50';
+      ctx.fillText('Arme au clair', x, y + 30);
+    }
+    if (this.paused) {
+      // Au tiers superieur, et non au centre : l'Avatar est au centre, et une
+      // pause qui masque le personnage cache justement ce qu'on veut regarder.
+      const cx = Math.round(width / 2);
+      const cy = Math.round(height / 3);
+      const texte = '— PAUSE —';
+      ctx.textAlign = 'center';
+      const w2 = ctx.measureText(texte).width + 20;
+      ctx.fillStyle = 'rgba(12, 10, 8, 0.78)';
+      ctx.fillRect(cx - w2 / 2, cy - 14, w2, 20);
+      ctx.fillStyle = '#e2c98a';
+      ctx.fillText(texte, cx, cy);
+      ctx.textAlign = 'left';
+    }
   }
 
   /** Journal, replie sur la largeur disponible pour ne jamais deborder. */

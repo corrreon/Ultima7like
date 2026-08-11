@@ -42,7 +42,7 @@ import type { SheetDef } from '../render/atlas';
  * **Une case sans shape correspondante reste dans la planche, inutilisee.**
  * Elle ne coute rien et attend que le registre s'etoffe. C'est le cas ici du
  * panier, de la jarre, de l'etagere murale, du fromage, du poulet roti, de la
- * bouteille de vin, de la marmite, de la dague, de la hache, du marteau de
+ * bouteille de vin, de la marmite, de la hache, du marteau de
  * guerre, de l'arc, du soufflet, de la scie, de la pelle, de la fourche, de la
  * faux, de l'etabli, de la meule, de la bougie, du chaudron, de l'abreuvoir,
  * de la botte de foin, du tas de rondins, de la souche, du seau, de la ruche,
@@ -128,6 +128,7 @@ export const SHEETS: SheetDef[] = [
     rows: 3,
     entries: [
       { shape: 'sword', cell: 1, tilesWide: 0.75 },
+      { shape: 'dagger', cell: 2, tilesWide: 0.55 },
       { shape: 'shield', frame: 0, cell: 6, tilesWide: 0.8 },
       { shape: 'shield', frame: 1, cell: 5, tilesWide: 0.8 },
       { shape: 'shield', frame: 2, cell: 7, tilesWide: 0.8 },

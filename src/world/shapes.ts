@@ -48,6 +48,23 @@ export interface ShapeDef {
   food?: number;
   /** Degats infliges si l'objet est utilise comme arme. */
   damage?: number;
+  /**
+   * Camp de l'acteur. Deux acteurs de camps differents sont hostiles.
+   *
+   * Porte par la shape et non par l'acteur : un brigand est un brigand parce
+   * qu'il est de cette espece, pas parce qu'on le lui a dit a la creation. Le
+   * format de sauvegarde n'a donc rien de plus a retenir.
+   */
+  faction?: string;
+  /**
+   * L'acteur se bat. Sans ce drapeau il continue son emploi du temps meme
+   * quand on l'attaque : une aubergiste n'a pas a charger un brigand.
+   */
+  combatant?: boolean;
+  /** Chances de toucher, opposees a la defense de la cible. */
+  attack?: number;
+  /** Difficulte a etre touche. */
+  defense?: number;
   /** Valeur marchande, en pieces d'or. */
   value?: number;
   /** L'objet s'empile (or, fleches...). */
@@ -214,6 +231,9 @@ def({ id: 'apple', name: 'Pomme', kind: 'object', footprint: [1, 1], height: 1, 
 def({ id: 'ale', name: 'Chope de biere', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 8, volume: 2, food: 5, value: 3 });
 def({ id: 'gold', name: 'Piece d\'or', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 1, stackable: true });
 def({ id: 'key', name: 'Clef', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 5 });
+// Arme de depart. Sans elle, l'Avatar frappe a mains nues pour deux points :
+// le premier combat est alors perdu d'avance, ce qui se lit comme un bug.
+def({ id: 'dagger', name: 'Dague', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 20, volume: 3, damage: 4, value: 25 });
 def({ id: 'sword', name: 'Epee', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 60, volume: 6, damage: 8, value: 60 });
 def({ id: 'hammer', name: 'Marteau de forge', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 40, volume: 4, damage: 5, value: 20 });
 def({ id: 'torch', name: 'Torche', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 10, volume: 2, light: 4, value: 4 });
@@ -222,11 +242,12 @@ def({ id: 'lute', name: 'Luth', kind: 'object', footprint: [1, 1], height: 1, fr
 // --- Acteurs --------------------------------------------------------------
 // 8 frames : 4 directions x 2 poses de marche.
 
-def({ id: 'avatar', name: 'Avatar', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true });
-def({ id: 'townsman', name: 'Villageois', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true });
-def({ id: 'townswoman', name: 'Villageoise', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true });
-def({ id: 'guard', name: 'Garde', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true });
-def({ id: 'smith', name: 'Forgeron', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true });
+def({ id: 'avatar', name: 'Avatar', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, combatant: true, attack: 14, defense: 12 });
+def({ id: 'townsman', name: 'Villageois', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, defense: 8 });
+def({ id: 'townswoman', name: 'Villageoise', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, defense: 8 });
+def({ id: 'guard', name: 'Garde', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, combatant: true, attack: 15, defense: 14 });
+def({ id: 'smith', name: 'Forgeron', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, defense: 10 });
+def({ id: 'brigand', name: 'Brigand', kind: 'actor', footprint: [1, 1], height: 4, frames: 8, solid: true, faction: 'brigand', combatant: true, attack: 11, defense: 9 });
 
 /** Recupere une shape, en levant une erreur si l'identifiant est inconnu. */
 export function getShape(id: string): ShapeDef {

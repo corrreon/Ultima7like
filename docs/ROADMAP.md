@@ -66,10 +66,31 @@ Deux blocages réels sont sortis de cette traversée, invisibles jusque-là : le
 sujet qui démarrait la quête était inatteignable, et les PNJ n'annonçaient
 jamais leur arrivée à leur poste.
 
+## Fait — le combat (v0.6)
+
+Temps réel avec pause, comme l'original : les coups tombent pendant que le
+monde continue, et la pause sert à reprendre la main. La résolution vit dans
+`src/sim/combat.ts`, module pur — ni rendu, ni horloge, ni monde — donc
+entièrement vérifiable à graine fixée.
+
+- [x] Camps portés par la shape (`faction`, `combatant`, `attack`, `defense`) :
+      un brigand est hostile par espèce, la sauvegarde n'a rien de plus à retenir
+- [x] Arme choisie dans l'inventaire, conteneurs imbriqués compris
+- [x] Poursuite, cadence, coup fatal, butin qui tombe au sol
+- [x] Pause (`P`) : les commandes restent lues, le monde est figé
+- [x] Jauge de vie et mention « arme au clair »
+- [x] Un campement de brigands au sud-ouest
+
+Deux réglages sont sortis de l'essai en jeu, pas de la théorie : l'Avatar
+partait sans arme et frappait pour deux points, ce qui rendait le premier
+combat perdu d'avance — d'où la dague de départ, qui réemploie une case
+jusque-là inutilisée de la planche d'armes. Et les brigands, campés à trois
+tuiles les uns des autres avec une vigilance de sept, chargeaient toujours en
+bloc : c'est le **nombre d'adversaires simultanés**, et non les dégâts, qui
+décide d'un combat en temps réel.
+
 ## Étape suivante — la boucle de jeu
 
-- [ ] **Combat** en temps réel avec pause, comme l'original : dégâts depuis
-      `shape.damage`, portée, mode de combat par acteur
 - [ ] **Groupe** : compagnons recrutables, formation, IA de suivi
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
 - [ ] **Commerce** : achat/vente à partir de `shape.value`, bourse des PNJ

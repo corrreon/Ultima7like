@@ -127,6 +127,14 @@ export const LANDMARKS = {
   square: { tx: 44, ty: 41 },
   crossroads: { tx: 44, ty: 38 },
   avatarStart: { tx: 44, ty: 44 },
+  /**
+   * Campement de brigands, au sud-ouest, hors du bourg et hors de l'etang.
+   *
+   * Assez loin pour qu'on ne tombe pas dessus en sortant de la taverne, assez
+   * pres pour qu'on finisse par y venir. Le combat n'a d'interet que si on le
+   * cherche : personne n'attaque le bourg de sa propre initiative.
+   */
+  camp: { tx: 22, ty: 76 },
 } as const;
 
 function stampRoad(world: World, x0: number, y0: number, x1: number, y1: number): void {

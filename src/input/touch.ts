@@ -19,7 +19,7 @@
  * d'inventaire.
  */
 
-export type TouchAction = 'act' | 'bag' | 'journal' | 'close';
+export type TouchAction = 'act' | 'bag' | 'journal' | 'combat' | 'close';
 
 interface Button {
   id: TouchAction;
@@ -64,6 +64,10 @@ export class TouchControls {
       { id: 'bag', label: 'Sac', x: bx, y: by - gap, radius: r },
       { id: 'close', label: 'Fermer', x: bx - gap, y: by, radius: r },
       { id: 'journal', label: 'Notes', x: bx - gap, y: by - gap, radius: r },
+      // La pause reste au clavier : un monde fige avec un stick virtuel sous
+      // le pouce n'a pas de sens, alors que degainer est indispensable pour
+      // que le combat soit jouable au doigt.
+      { id: 'combat', label: 'Armes', x: bx, y: by - gap * 2, radius: r },
     ];
   }
 

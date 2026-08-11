@@ -1273,6 +1273,13 @@ const itemPainters: Record<string, (ctx: Ctx2D) => void> = {
     px(ctx, 7, 13, 2, 3, tone('wood', 1));
     px(ctx, 7, 15, 2, 1, tone('gold', 3));
   },
+  dagger: (ctx) => {
+    ditherRect(ctx, 7, 4, 2, 7, tone('metal', 3), tone('metal', 4), 0.5);
+    px(ctx, 7, 4, 1, 7, '#c8ccd4');
+    px(ctx, 5, 11, 6, 1, tone('metal', 1));
+    px(ctx, 7, 12, 2, 3, tone('wood', 1));
+    px(ctx, 7, 14, 2, 1, tone('metal', 2));
+  },
   hammer: (ctx) => {
     px(ctx, 3, 3, 9, 5, tone('metal', 2));
     px(ctx, 3, 3, 9, 1, tone('metal', 4));
@@ -1320,6 +1327,7 @@ const actorPalettes: Record<string, ActorPalette> = {
   townswoman: { skinLevel: 4, hair: 'fire', hairLevel: 1, tunic: 'cloth', legs: 'cloth', accent: 'linen' },
   guard: { skinLevel: 2, hair: 'metal', hairLevel: 0, tunic: 'metal', legs: 'metal', accent: 'metal' },
   smith: { skinLevel: 1, hair: 'wood', hairLevel: 0, tunic: 'blood', legs: 'wood', accent: 'metal' },
+  brigand: { skinLevel: 1, hair: 'stone', hairLevel: 0, tunic: 'dirt', legs: 'leaf', accent: 'blood' },
 };
 
 /**

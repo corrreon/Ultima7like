@@ -4,6 +4,17 @@ import { Actor } from '../objects/actor';
 import type { World } from '../world/world';
 import { findPath } from './pathfind';
 import { currentEntry } from './schedule';
+import {
+  CADENCE,
+  PORTEE,
+  cibleLaPlusProche,
+  combattant,
+  distance,
+  estHostile,
+  faction,
+  frapper,
+  type Coup,
+} from './combat';
 
 /**
  * IA des PNJ, pilotee par l'emploi du temps.
@@ -23,6 +34,12 @@ const CHANSONS = [
 ];
 
 export class ScheduleAI {
+  /**
+   * Appele a chaque coup porte. L'IA resout le combat elle-meme ; le jeu se
+   * contente d'en tirer les consequences visibles — journal, mort, butin.
+   */
+  onCoup?: (attaquant: Actor, cible: Actor, coup: Coup) => void;
+
   constructor(
     private readonly world: World,
     private readonly clock: GameClock,
@@ -43,6 +60,16 @@ export class ScheduleAI {
       return;
     }
 
+    if (actor.attackCooldown > 0) actor.attackCooldown -= dt;
+
+    // Le combat passe avant l'emploi du temps : on ne va pas se coucher pendant
+    // qu'on se fait attaquer. Un acteur non combattant, lui, continue sa
+    // journee — c'est ce qui evite que l'aubergiste charge les brigands.
+    if (combattant(actor) && this.fight(actor)) {
+      ScheduleAI.moveAlongPath(actor, dt, this.world);
+      return;
+    }
+
     actor.thinkTimer -= dt;
     if (actor.thinkTimer <= 0) {
       actor.thinkTimer = 0.5 + this.rng.next();
@@ -50,6 +77,47 @@ export class ScheduleAI {
     }
 
     ScheduleAI.moveAlongPath(actor, dt, this.world);
+  }
+
+  /**
+   * Poursuite et coups. Retourne true si le combat occupe l'acteur ce tour.
+   *
+   * Un brigand cherche toujours la bagarre ; les autres ne se battent que si
+   * on les a mis en combat — l'Avatar par le joueur, un garde en repliquant.
+   */
+  private fight(actor: Actor): boolean {
+    const cherche = actor.inCombat || faction(actor) !== 'ville';
+    if (!cherche) return false;
+
+    if (!actor.target || !estHostile(actor, actor.target)) {
+      actor.target = cibleLaPlusProche(actor, this.world.actors);
+    }
+    const cible = actor.target;
+    if (!cible) return false;
+
+    actor.activity = 'stand';
+    actor.atPost = false;
+
+    if (distance(actor, cible) <= PORTEE) {
+      actor.path.length = 0;
+      actor.faceTowards(cible.px, cible.py);
+      if (actor.attackCooldown <= 0) {
+        actor.attackCooldown = CADENCE;
+        this.onCoup?.(actor, cible, frapper(actor, cible, this.rng));
+      }
+      return true;
+    }
+
+    // Poursuite. On recalcule souvent : la cible bouge, un chemin calcule une
+    // fois pour toutes viserait le sol qu'elle vient de quitter.
+    if (actor.path.length === 0) {
+      actor.path = findPath(this.world, { tx: actor.tx, ty: actor.ty }, { tx: cible.tx, ty: cible.ty }, {
+        actor,
+        tolerance: PORTEE,
+        openDoors: true,
+      });
+    }
+    return true;
   }
 
   private think(actor: Actor): void {

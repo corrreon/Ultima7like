@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 84 tests
+npm test         # 95 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -20,6 +20,8 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | Prendre / poser | clic sur l'objet | toucher l'objet |
 | Sac | `I` | bouton **Sac** |
 | Journal de quêtes | `J` | bouton **Notes** |
+| Dégainer / rengainer | `C` | bouton **Armes** |
+| Pause | `P` | — |
 | Fermer | `Échap` | bouton **Fermer** |
 | Sauver / charger | `F5` / `F9` (`F8` : nouvelle partie) | automatique |
 
@@ -213,13 +215,13 @@ avance de dix heures, `u7.world` et `u7.avatar` donnent accès à la simulation.
 src/core/     boucle, horloge, aléatoire déterministe, constantes
 src/world/    registre de shapes, chunks, requêtes spatiales
 src/objects/  GameObject (poids, volume, conteneurs) et Actor
-src/sim/      pathfinding A*, emplois du temps, IA
+src/sim/      pathfinding A*, emplois du temps, IA, combat
 src/script/   usecode (comportements), dialogues et quêtes
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues, les planches
 public/       les neuf planches de dessins
-tests/        84 tests sur la logique pure
+tests/        95 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

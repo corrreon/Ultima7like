@@ -21,6 +21,7 @@ import { ScheduleAI } from './sim/ai';
 import { findPath } from './sim/pathfind';
 import { ConversationState, getConversation } from './script/conversation';
 import { applyEffect, journal, refreshInventoryFlags } from './script/quests';
+import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
 import { use, type UsecodeContext } from './script/usecode';
 import { buildTown } from './data/town';
 import { populate } from './data/npcs';
@@ -56,6 +57,11 @@ class Game {
   world: World;
   avatar: Actor;
   private ai: ScheduleAI;
+  /**
+   * Monde fige. Les commandes continuent d'etre lues : c'est la pause du
+   * combat d'Ultima VII, faite pour reprendre la main, pas pour s'absenter.
+   */
+  private paused = false;
   /** Drapeaux de conversation partages par tout le jeu. */
   private flags = new Set<string>();
   /** Secondes restantes avant la prochaine sauvegarde automatique. */
@@ -92,7 +98,7 @@ class Game {
       this.world = buildTown();
       this.avatar = populate(this.world).avatar;
     }
-    this.ai = new ScheduleAI(this.world, this.clock, this.rng);
+    this.ai = this.makeAi();
 
     this.renderer.camera.x = this.avatar.px;
     this.renderer.camera.y = this.avatar.py;
@@ -115,7 +121,7 @@ class Game {
     this.ui.addLog(
       this.input.coarse
         ? 'Stick : marcher · Toucher : prendre · Agir : utiliser · Notes : journal'
-        : 'Clic : marcher · Double-clic : utiliser · I : sac · J : journal · F5 : sauver',
+        : 'Clic : marcher · Double-clic : utiliser · I : sac · J : journal · C : degainer · P : pause',
     );
 
     // Les vrais dessins arrivent apres coup et remplacent les sprites
@@ -162,7 +168,7 @@ class Game {
     this.avatar = restored.avatar;
     this.clock = restored.clock;
     this.flags = restored.flags;
-    this.ai = new ScheduleAI(this.world, this.clock, this.rng);
+    this.ai = this.makeAi();
 
     this.ui.windows.length = 0;
     this.ui.conversation = null;
@@ -180,7 +186,7 @@ class Game {
     this.avatar = populate(this.world).avatar;
     this.clock = new GameClock(7, 30);
     this.flags = new Set();
-    this.ai = new ScheduleAI(this.world, this.clock, this.rng);
+    this.ai = this.makeAi();
 
     this.ui.windows.length = 0;
     this.ui.conversation = null;
@@ -243,13 +249,22 @@ class Game {
   // --- Simulation ---------------------------------------------------------
 
   update(dt: number): void {
-    this.clock.advance(dt);
     this.ui.setMouse(this.toUi(this.input.mouseX), this.toUi(this.input.mouseY));
 
+    // Les commandes restent vivantes en pause : c'est tout l'interet de la
+    // pause d'Ultima VII, reprendre la main sans que le monde avance.
     this.handleKeys();
     this.handlePointers();
     this.handleTouchButtons();
+    if (this.paused) {
+      this.input.endFrame();
+      this.touch.endFrame();
+      return;
+    }
+
+    this.clock.advance(dt);
     this.moveAvatar(dt);
+    this.fightNearby(dt);
 
     for (const actor of this.world.actors) {
       if (actor === this.avatar) continue;
@@ -270,6 +285,8 @@ class Game {
     for (const code of this.input.pressed) {
       if (code === 'KeyI') this.openBag();
       else if (code === 'KeyJ') this.toggleJournal();
+      else if (code === 'KeyC') this.toggleCombat();
+      else if (code === 'KeyP') this.togglePause();
       else if (code === 'Escape') this.ui.closeTop();
       else if (code === 'KeyE' || code === 'Space') this.actNearby();
       else if (code === 'F5') this.save();
@@ -286,10 +303,99 @@ class Game {
     this.ui.journal = this.ui.journal ? null : journal(this.flags);
   }
 
+  /**
+   * L'IA est reconstruite a chaque chargement, le monde changeant d'identite.
+   * Le raccord des coups doit suivre, sinon les combats redeviennent muets
+   * apres un F9.
+   */
+  private makeAi(): ScheduleAI {
+    const ai = new ScheduleAI(this.world, this.clock, this.rng);
+    ai.onCoup = (attaquant, cible, coup) => this.onCoup(attaquant, cible, coup);
+    return ai;
+  }
+
+  private toggleCombat(): void {
+    this.avatar.inCombat = !this.avatar.inCombat;
+    this.avatar.target = null;
+    this.ui.combat = this.avatar.inCombat;
+    this.ui.addLog(this.avatar.inCombat ? 'Vous degainez.' : 'Vous rengainez.');
+  }
+
+  private togglePause(): void {
+    this.paused = !this.paused;
+    this.ui.paused = this.paused;
+    this.ui.addLog(this.paused ? 'Pause.' : 'Reprise.');
+  }
+
+  /**
+   * L'Avatar frappe ce qui est a portee, sans le poursuivre.
+   *
+   * Ultima VII fait courir l'Avatar sur sa cible tout seul ; ici c'est le
+   * joueur qui approche. Un personnage qui charge de lui-meme prive de la
+   * seule decision qui compte dans un combat en temps reel : rester ou fuir.
+   */
+  private fightNearby(dt: number): void {
+    if (this.avatar.attackCooldown > 0) this.avatar.attackCooldown -= dt;
+    if (!this.avatar.inCombat || this.avatar.attackCooldown > 0) return;
+
+    const cible = cibleLaPlusProche(this.avatar, this.world.actors, PORTEE);
+    if (!cible || distance(this.avatar, cible) > PORTEE) return;
+
+    this.avatar.attackCooldown = CADENCE;
+    this.avatar.faceTowards(cible.px, cible.py);
+    this.onCoup(this.avatar, cible, frapper(this.avatar, cible, this.rng));
+  }
+
+  /**
+   * Consequences visibles d'un coup.
+   *
+   * La resolution appartient a `sim/combat` ; il ne reste ici que ce qui se
+   * voit — une replique, une ligne de journal, un corps qui laisse tomber ce
+   * qu'il portait.
+   */
+  private onCoup(attaquant: Actor, cible: Actor, coup: ReturnType<typeof frapper>): void {
+    const nom = attaquant === this.avatar ? 'Vous' : attaquant.displayName;
+    if (!coup.touche) {
+      if (attaquant === this.avatar || cible === this.avatar) {
+        this.ui.addLog(`${nom} manque ${cible === this.avatar ? 'l\'Avatar' : cible.displayName}.`);
+      }
+      return;
+    }
+
+    cible.say(`-${coup.degats}`, 0.8);
+    if (attaquant === this.avatar || cible === this.avatar) {
+      this.ui.addLog(
+        `${nom} touche ${cible === this.avatar ? 'l\'Avatar' : cible.displayName} — ${coup.degats} points.`,
+      );
+    }
+
+    if (!coup.fatal) {
+      // On rend les coups : etre frappe suffit a entrer en combat, sans quoi
+      // un garde se laisserait tuer en patrouillant.
+      cible.inCombat = true;
+      if (!cible.target) cible.target = attaquant;
+      return;
+    }
+
+    this.ui.addLog(`${cible.displayName} s'effondre.`);
+    for (const objet of depouiller(cible)) this.world.addObject(objet);
+    const index = this.world.actors.indexOf(cible);
+    if (index >= 0) this.world.actors.splice(index, 1);
+    if (this.avatar.target === cible) this.avatar.target = null;
+    for (const actor of this.world.actors) if (actor.target === cible) actor.target = null;
+
+    if (cible === this.avatar) {
+      this.ui.addLog('Vous perdez connaissance. F9 pour reprendre, F8 pour recommencer.');
+      this.paused = true;
+      this.ui.paused = true;
+    }
+  }
+
   private handleTouchButtons(): void {
     for (const action of this.touch.triggered) {
       if (action === 'bag') this.openBag();
       else if (action === 'journal') this.toggleJournal();
+      else if (action === 'combat') this.toggleCombat();
       else if (action === 'close') this.ui.closeTop();
       else if (action === 'act') this.actNearby();
     }

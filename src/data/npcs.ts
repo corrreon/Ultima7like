@@ -36,6 +36,7 @@ export function populate(world: World): Population {
   pack.add(new GameObject({ shape: 'apple' }));
   avatar.add(pack);
   avatar.add(new GameObject({ shape: 'torch' }));
+  avatar.add(new GameObject({ shape: 'dagger' }));
   avatar.add(new GameObject({ shape: 'gold', quantity: 25 }));
   world.addActor(avatar);
 
@@ -122,6 +123,33 @@ export function populate(world: World): Population {
   });
   jehan.add(new GameObject({ shape: 'sword' }));
   npcs.push(jehan);
+
+  // Brigands. Ils n'ont pas d'emploi du temps : leur seule occupation est de
+  // flaner autour de leur feu, et de tomber sur quiconque s'en approche.
+  //
+  // Ils sont espaces d'au moins sept tuiles, soit plus que leur vigilance : on
+  // peut donc en aborder un sans que les autres accourent. Serres, ils
+  // chargeaient en bloc et le campement n'avait aucune facon d'etre pris.
+  const campements: Array<[number, number, string]> = [
+    [0, 0, 'Brigand'],
+    [7, 3, 'Brigand'],
+    [-3, 7, 'Chef de bande'],
+  ];
+  for (const [dx, dy, nom] of campements) {
+    const brigand = new Actor({
+      shape: 'brigand',
+      displayName: nom,
+      tx: L.camp.tx + dx,
+      ty: L.camp.ty + dy,
+      maxHp: nom === 'Chef de bande' ? 42 : 26,
+      speed: 2.9,
+      // Rayon serre : une flanerie large les rassemblerait a nouveau.
+      schedule: [{ hour: 0, activity: 'wander', tx: L.camp.tx + dx, ty: L.camp.ty + dy, radius: 2 }],
+    });
+    brigand.add(new GameObject({ shape: nom === 'Chef de bande' ? 'sword' : 'hammer' }));
+    brigand.add(new GameObject({ shape: 'gold', quantity: nom === 'Chef de bande' ? 40 : 12 }));
+    npcs.push(brigand);
+  }
 
   for (const npc of npcs) {
     npc.px = npc.tx;
