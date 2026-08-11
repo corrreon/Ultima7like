@@ -144,6 +144,32 @@ describe('carte de Valmoret', () => {
     expect(world.isBuildingInterior(hall, hall.x1, hall.y0)).toBe(false);
   });
 
+  it('pose chaque lit entierement sur du plancher', () => {
+    // L'emprise s'etend vers le nord-ouest depuis la tuile de l'objet : elargir
+    // un meuble peut le faire mordre sur un mur sans que rien ne proteste, le
+    // lit n'etant pas solide. La verification vaut pour toute augmentation
+    // future d'emprise.
+    const beds = [...world.allObjects()].filter((o) => o.shapeId === 'bed');
+    expect(beds.length).toBeGreaterThan(0);
+
+    for (const bed of beds) {
+      const [w, d] = bed.shape.footprint;
+      const region = world.regionAt(bed.tx, bed.ty);
+      expect(region, `lit en ${bed.tx},${bed.ty} hors batiment`).not.toBeNull();
+
+      for (let dy = 0; dy < d; dy++) {
+        for (let dx = 0; dx < w; dx++) {
+          const tx = bed.tx - dx;
+          const ty = bed.ty - dy;
+          expect(
+            world.isBuildingInterior(region!, tx, ty),
+            `lit en ${bed.tx},${bed.ty} deborde sur ${tx},${ty}`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
   it('place les objets multi-tuiles sur toute leur emprise', () => {
     const rug = [...world.allObjects()].find((o) => o.shapeId === 'rug');
     expect(rug).toBeDefined();

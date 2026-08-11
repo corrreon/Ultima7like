@@ -42,7 +42,7 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [x] Remplacement progressif et tolérant — une planche manquante n'empêche pas
       de jouer
 - [x] Déclaration des neuf planches : 45 cellules affectées à des shapes
-- [ ] Les fichiers PNG eux-mêmes
+- [x] Les neuf planches, détourées et posées : 45 sprites peints
 
 ## Étape suivante — la boucle de jeu
 

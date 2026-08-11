@@ -714,23 +714,27 @@ function chairSprite(): Sprite {
 }
 
 function bedSprite(): Sprite {
-  return makeSprite(T, T * 2, (ctx) => {
+  // Deux tuiles sur deux, comme le lit a baldaquin : la tete est au nord,
+  // l'oreiller en haut, la couverture rabattue vers le sud.
+  const W = T * 2;
+  const H = T * 2;
+  return makeSprite(W, H, (ctx) => {
     // Cadre
-    ditherRect(ctx, 0, 1, T, T * 2 - 2, tone('wood', 1), tone('wood', 2), 0.4);
-    px(ctx, 0, 1, T, 1, tone('wood', 3));
+    ditherRect(ctx, 0, 1, W, H - 2, tone('wood', 1), tone('wood', 2), 0.4);
+    px(ctx, 0, 1, W, 1, tone('wood', 3));
     // Matelas
-    ditherRect(ctx, 2, 4, T - 4, T * 2 - 9, tone('linen', 3), tone('linen', 4), 0.5);
+    ditherRect(ctx, 2, 4, W - 4, H - 9, tone('linen', 3), tone('linen', 4), 0.5);
     // Oreiller
-    px(ctx, 3, 5, T - 6, 6, tone('linen', 4));
-    px(ctx, 3, 5, T - 6, 1, '#d8d0bc');
-    px(ctx, 3, 10, T - 6, 1, tone('linen', 2));
+    px(ctx, 4, 5, W - 8, 6, tone('linen', 4));
+    px(ctx, 4, 5, W - 8, 1, '#d8d0bc');
+    px(ctx, 4, 10, W - 8, 1, tone('linen', 2));
     // Couverture, plis tramés
-    ditherRect(ctx, 2, T + 1, T - 4, 10, tone('blood', 2), tone('blood', 3), 0.5);
-    px(ctx, 2, T + 1, T - 4, 1, tone('blood', 4));
-    for (let y = T + 3; y < T + 10; y += 3) px(ctx, 3, y, T - 6, 1, tone('blood', 1));
+    ditherRect(ctx, 2, H / 2 + 1, W - 4, H / 2 - 6, tone('blood', 2), tone('blood', 3), 0.5);
+    px(ctx, 2, H / 2 + 1, W - 4, 1, tone('blood', 4));
+    for (let y = H / 2 + 3; y < H - 5; y += 3) px(ctx, 3, y, W - 6, 1, tone('blood', 1));
     // Montants
     px(ctx, 0, 0, 2, 4, tone('wood', 2));
-    px(ctx, T - 2, 0, 2, 4, tone('wood', 1));
+    px(ctx, W - 2, 0, 2, 4, tone('wood', 1));
   });
 }
 

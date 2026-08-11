@@ -247,7 +247,10 @@ function stampBuilding(world: World, plan: Blueprint): void {
           place(world, 'hearth', tx, ty);
           break;
         case 'k':
-          place(world, 'bookshelf', tx, ty, { frame: (tx + ty) % 2 });
+          // Les meubles d'une meme rangee sont espaces de deux tuiles : une
+          // parite sur `tx + ty` leur donne a tous la meme frame et
+          // l'alternance n'alterne jamais. D'ou la division par deux.
+          place(world, 'bookshelf', tx, ty, { frame: ((tx >> 1) + ty) % 2 });
           break;
         case 'p':
           place(world, 'pot', tx, ty);

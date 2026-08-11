@@ -15,10 +15,11 @@ rapport d'aspect du dessin.
 Une planche absente ou illisible n'empêche pas de jouer : le moteur garde ses
 sprites générés par code et se contente d'un avertissement dans la console.
 
-## Fichiers attendus
+## Les neuf planches
 
-`src/data/sheets.ts` déclare déjà neuf planches. Tant que le PNG n'est pas là,
-la console signale la planche manquante et le jeu garde ses sprites générés.
+Elles sont là, déclarées dans `src/data/sheets.ts`, et couvrent 45 sprites.
+Une planche absente ou illisible n'empêcherait pas de jouer : la console
+signalerait la planche manquante et le jeu garderait ses sprites générés.
 
 | Fichier | Contenu |
 | --- | --- |
@@ -34,6 +35,28 @@ la console signale la planche manquante et le jeu garde ses sprites générés.
 
 L'ordre est celui de la lecture, ligne par ligne : c'est lui qui donne l'index
 `cell`. Les cases sans shape correspondante restent inutilisées, sans dommage.
+
+## D'une image générée au fichier posé ici
+
+Ces PNG ne sont pas les images d'origine. Un modèle rend un JPEG de 2048 px de
+côté pour un dessin dont le pixel d'origine fait une dizaine de pixels, avec
+une compression qui laisse un halo de teintes intermédiaires autour de chaque
+objet — posé tel quel, cela fait 18 Mo et une frange rose autour de chaque
+sprite. `tools/detourer-planches.mjs` fait la préparation :
+
+```sh
+npm i --no-save sharp
+node tools/detourer-planches.mjs source.jpg=mobilier --marge 0
+```
+
+Il efface le bord des cellules, détoure par remplissage depuis ce bord plutôt
+que par un seuil sur la couleur — c'est ce qui emporte le halo de compression,
+qu'aucun seuil ne distingue proprement d'un pixel de dessin — puis réduit à
+512 px et seuille l'alpha pour rendre au pixel art ses bords francs. Les neuf
+planches pèsent 456 Ko en tout.
+
+Le résultat est **déjà détouré** : le fond y est transparent, pas magenta. Le
+chargeur accepte les deux, la convention magenta reste celle des sources.
 
 ## Vérifier la plomberie avant de dessiner
 

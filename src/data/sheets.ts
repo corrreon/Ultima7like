@@ -59,7 +59,7 @@ export const SHEETS: SheetDef[] = [
       { shape: 'stool', cell: 1, tilesWide: 1 },
       { shape: 'table', cell: 2, tilesWide: 1 },
       { shape: 'longtable', cell: 3, tilesWide: 2 },
-      { shape: 'bed', cell: 4, tilesWide: 1 },
+      { shape: 'bed', cell: 4, tilesWide: 2 },
       { shape: 'canopybed', cell: 5, tilesWide: 2 },
       { shape: 'bookshelf', frame: 0, cell: 6, tilesWide: 1 },
       { shape: 'bookshelf', frame: 1, cell: 7, tilesWide: 1 },

@@ -90,7 +90,10 @@ def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, f
 def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
 def({ id: 'table', name: 'Table', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'chair', name: 'Chaise', kind: 'object', footprint: [1, 1], height: 2, frames: 1 });
-def({ id: 'bed', name: 'Lit', kind: 'object', footprint: [1, 2], height: 1, frames: 1 });
+// Un lit fait deux tuiles sur deux. En une seule tuile de large il se dessinait
+// plus etroit qu'un dormeur ; c'est aussi l'emprise du lit a baldaquin, ce qui
+// evite deux echelles de lit dans le meme bourg.
+def({ id: 'bed', name: 'Lit', kind: 'object', footprint: [2, 2], height: 1, frames: 1 });
 def({ id: 'bookshelf', name: 'Bibliotheque', kind: 'object', footprint: [1, 1], height: 4, frames: 2, solid: true });
 // --- Objets multi-tuiles --------------------------------------------------
 // L'emprise est donnee en tuiles [largeur, profondeur], et la tuile de l'objet
