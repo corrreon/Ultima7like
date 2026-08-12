@@ -78,6 +78,40 @@ describe('conteneurs imbriques', () => {
     expect(actor.findItem('sword')).toBeNull();
   });
 
+  it('range un objet ramasse dans un sac plutot qu\'en vrac', () => {
+    const actor = new Actor({ shape: 'avatar', displayName: 'Avatar' });
+    const bag = new GameObject({ shape: 'bag' });
+    actor.add(bag);
+
+    const bread = new GameObject({ shape: 'bread' });
+    expect(actor.stow(bread)).toBe(true);
+    expect(bread.parent).toBe(bag);
+  });
+
+  it('verse l\'or ramasse dans le tas deja porte', () => {
+    // Sans quoi une bourse finit par contenir dix tas de pieces distincts, et
+    // le total ne se lit plus nulle part.
+    const actor = new Actor({ shape: 'avatar', displayName: 'Avatar' });
+    const bourse = new GameObject({ shape: 'bag' });
+    const tas = new GameObject({ shape: 'gold', quantity: 25 });
+    bourse.add(tas);
+    actor.add(bourse);
+
+    expect(actor.stow(new GameObject({ shape: 'gold', quantity: 12 }))).toBe(true);
+    expect(tas.quantity).toBe(37);
+    expect(bourse.contents).toHaveLength(1);
+  });
+
+  it('refuse ce qui ferait depasser la charge', () => {
+    const actor = new Actor({ shape: 'townsman', displayName: 'Test' });
+    for (let i = 0; i < 13; i++) actor.add(new GameObject({ shape: 'sword' }));
+    expect(actor.carriedWeight).toBe(780);
+    // 780 + 60 > 800 : la lame reste au sol.
+    const sword = new GameObject({ shape: 'sword' });
+    expect(actor.stow(sword)).toBe(false);
+    expect(sword.parent).toBeNull();
+  });
+
   it('empile deux tas identiques mais pas deux qualites differentes', () => {
     const a = new GameObject({ shape: 'gold', quantity: 5 });
     const b = new GameObject({ shape: 'gold', quantity: 3 });

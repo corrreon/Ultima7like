@@ -271,7 +271,33 @@ class Game {
       log: (text) => this.ui.addLog(text),
       openContainer: (obj) => this.ui.openContainer(obj, obj.name),
       startConversation: (npc) => this.startConversation(npc),
+      take: (obj) => this.take(obj),
     };
+  }
+
+  /**
+   * Ramasse un objet pose au sol et le range dans l'inventaire.
+   *
+   * L'objet quitte le monde **avant** d'etre range, sinon il figurerait aux
+   * deux endroits : le monde tient ses objets a part de l'arborescence des
+   * inventaires.
+   */
+  private take(obj: GameObject): boolean {
+    if (this.avatar.carriedWeight + obj.totalWeight > this.avatar.maxWeight) {
+      this.ui.addLog('C\'est trop lourd pour vous.');
+      return false;
+    }
+    const description = obj.describe();
+    this.world.removeObject(obj);
+    if (!this.avatar.stow(obj)) {
+      // Rien n'a pu l'accueillir : on le remet ou il etait plutot que de le
+      // faire disparaitre.
+      this.world.addObject(obj);
+      this.ui.addLog('Vous ne pouvez pas en porter davantage.');
+      return false;
+    }
+    this.ui.addLog(`Vous ramassez : ${description}.`);
+    return true;
   }
 
   /** Convertit des pixels de rendu vers l'espace de l'interface. */

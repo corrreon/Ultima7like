@@ -122,6 +122,32 @@ export class Actor extends GameObject {
     return true;
   }
 
+  /**
+   * Range un objet dans l'inventaire, au meilleur endroit.
+   *
+   * Dans l'ordre : un tas de meme nature auquel se joindre, puis un contenant
+   * qui a la place, puis l'inventaire lui-meme. C'est ce qui fait que ramasser
+   * des pieces grossit la bourse au lieu d'accumuler des tas separes, et que le
+   * reste finit dans le sac plutot qu'en vrac.
+   *
+   * Retourne false si la charge ne le permet pas, sans rien deplacer.
+   */
+  stow(obj: GameObject): boolean {
+    if (this.carriedWeight + obj.totalWeight > this.maxWeight) return false;
+
+    const pile = this.findDeep((o) => o !== obj && o.canStackWith(obj));
+    if (pile) {
+      pile.quantity += obj.quantity;
+      obj.detach();
+      return true;
+    }
+
+    for (const contenant of this.contents) {
+      if (contenant.isContainer && contenant.canAccept(obj)) return contenant.add(obj);
+    }
+    return this.add(obj);
+  }
+
   /** Cherche un objet de cette shape dans l'inventaire, a n'importe quel niveau. */
   findItem(shapeId: string): GameObject | null {
     const stack: GameObject[] = [...this.contents];

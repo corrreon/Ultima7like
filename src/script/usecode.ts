@@ -23,6 +23,15 @@ export interface UsecodeContext {
   openContainer: (obj: GameObject) => void;
   /** Demarre une conversation. */
   startConversation: (npc: Actor) => void;
+  /**
+   * Ramasse un objet et le range. Retourne false si c'est impossible.
+   *
+   * Le clic simple met l'objet « en main », a la facon d'Ultima VII, ce qui
+   * suppose d'ouvrir ensuite son sac pour l'y deposer — trois gestes pour
+   * ramasser une piece, et aucun equivalent commode au doigt. « Utiliser » un
+   * objet transportable qui n'a pas d'autre usage le range donc directement.
+   */
+  take: (obj: GameObject) => boolean;
 }
 
 export type UsecodeHandler = (obj: GameObject, ctx: UsecodeContext) => void;
@@ -63,6 +72,13 @@ export function use(obj: GameObject, ctx: UsecodeContext): boolean {
     ctx.log(`Vous mangez ${obj.name.toLowerCase()}.`);
     consumeOne(obj, ctx.world);
     return true;
+  }
+
+  // En dernier, pour ne pas ramasser ce qui a un usage propre : un tonneau
+  // s'ouvre, une miche se mange, et seul ce qui ne sait rien faire d'autre se
+  // met dans le sac.
+  if (shape.takeable && obj.parent === null) {
+    return ctx.take(obj);
   }
 
   return false;
