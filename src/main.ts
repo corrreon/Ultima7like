@@ -18,6 +18,7 @@ import { allShapes } from './world/shapes';
 import { loadSheets } from './render/atlas';
 import { SHEETS } from './data/sheets';
 import { Renderer } from './render/renderer';
+import { batimentA, dessinerEditeur, type EtatEditeur } from './render/editor';
 import { Ui, type ContainerWindow } from './render/ui';
 import { ScheduleAI } from './sim/ai';
 import { findPath } from './sim/pathfind';
@@ -28,7 +29,8 @@ import { accorderCombat, compagnons, congedier } from './sim/party';
 import { HEURE_REVEIL, reposer } from './sim/repos';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { aUnUsage, use, type UsecodeContext } from './script/usecode';
-import { LANDMARKS, buildTown, reposerEnveloppe } from './data/town';
+import { LANDMARKS, buildTown, reposerEnveloppe, WORLD_SIZE } from './data/town';
+import { deplacerPlan, exporterOrigines, tousLesPlans, validerPlans } from './data/plans';
 import { populate } from './data/npcs';
 import type { World } from './world/world';
 
@@ -80,6 +82,10 @@ class Game {
    * densite et illisible sur un telephone.
    */
   private uiScale = 1;
+  /** Calque d'edition de carte. Voir src/render/editor.ts. */
+  private readonly editeur: EtatEditeur = {
+    actif: false, saisi: null, curseur: null, problemes: [],
+  };
 
   constructor(container: HTMLElement) {
     buildArt();
@@ -399,11 +405,82 @@ class Game {
       else if (code === 'F5') this.save();
       else if (code === 'F9') this.load();
       else if (code === 'F8') this.restart();
+      else if (code === 'F2') this.basculerEditeur();
+      else if (this.editeur.actif && this.editeur.saisi) {
+        // Les fleches deplacent le batiment saisi plutot que l'Avatar : en
+        // mode edition, c'est la carte qu'on manipule.
+        const pas: Record<string, [number, number]> = {
+          ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+        };
+        const d = pas[code];
+        if (d) this.deplacerBatiment(this.editeur.saisi, d[0], d[1]);
+      }
     }
   }
 
   private openBag(): void {
     this.ui.openContainer(this.avatar, 'Sac de l\'Avatar');
+  }
+
+  /**
+   * Entre ou sort du mode edition.
+   *
+   * On sort en imprimant les origines dans la console : c'est ce qu'on recopie
+   * dans `plans.ts`. Sans cette impression, une session d'edition ne laisse
+   * aucune trace et il faut relever les nombres a l'oeil sur le calque.
+   */
+  private basculerEditeur(): void {
+    this.editeur.actif = !this.editeur.actif;
+    this.editeur.saisi = null;
+    if (this.editeur.actif) {
+      this.ui.addLog('Editeur de carte. Clic : saisir un batiment, fleches : le deplacer.');
+      this.revaliderCarte();
+      return;
+    }
+    this.ui.addLog('Editeur ferme. Origines dans la console.');
+    console.info(`Origines a recopier dans src/data/plans.ts :\n${exporterOrigines()}`);
+  }
+
+  /**
+   * Deplace un batiment et reconstruit la carte.
+   *
+   * On reconstruit tout plutot que de bouger les objets : le terrain sous le
+   * batiment, les regions, la toiture et le mobilier procedural dependent tous
+   * de l'implantation. Vingt millisecondes, et c'est le seul moyen de voir
+   * vraiment ce que donne le deplacement.
+   *
+   * Les habitants sont reposes avec la carte : leurs lits ont bouge.
+   */
+  private deplacerBatiment(name: string, dx: number, dy: number): void {
+    const plan = tousLesPlans().find((p) => p.name === name);
+    if (!plan) return;
+    deplacerPlan(name, plan.ox + dx, plan.oy + dy);
+
+    // `strict: false` : un chevauchement passager doit s'afficher, pas faire
+    // disparaitre le jeu au milieu d'une manipulation.
+    // On garde le point de vue : reconstruire la carte replacait l'Avatar a
+    // son point de depart, si bien qu'on perdait de vue le batiment qu'on etait
+    // en train de deplacer — a chaque pas.
+    const ou = { tx: this.avatar.tx, ty: this.avatar.ty };
+    this.world = buildTown(1337, false);
+    this.avatar = populate(this.world).avatar;
+    if (!this.world.isBlocked(ou.tx, ou.ty)) {
+      this.avatar.tx = ou.tx;
+      this.avatar.ty = ou.ty;
+      this.avatar.px = ou.tx;
+      this.avatar.py = ou.ty;
+    }
+    this.renderer.camera.x = this.avatar.px;
+    this.renderer.camera.y = this.avatar.py;
+    this.ai = this.makeAi();
+    this.ui.windows.length = 0;
+    this.ui.conversation = null;
+    this.ui.held = null;
+    this.revaliderCarte();
+  }
+
+  private revaliderCarte(): void {
+    this.editeur.problemes = validerPlans(tousLesPlans(), WORLD_SIZE);
   }
 
   private toggleJournal(): void {
@@ -522,6 +599,9 @@ class Game {
 
   /** Deplacement : stick virtuel ou clavier, prioritaires sur le chemin calcule. */
   private moveAvatar(dt: number): void {
+    // En edition, les fleches deplacent le batiment saisi. Les laisser aussi
+    // faire marcher l'Avatar ferait glisser la vue a chaque pas.
+    if (this.editeur.actif) return;
     const keyboard = this.input.moveVector();
     const stick = this.touch.vector();
     const dx = keyboard.dx || stick.dx;
@@ -560,6 +640,11 @@ class Game {
       if (this.handleUiPointer(down, ux, uy)) continue;
 
       const { tx, ty } = this.renderer.camera.screenToWorld(down.x, down.y);
+      if (this.editeur.actif) {
+        // En edition, le clic saisit un batiment au lieu de faire marcher.
+        this.editeur.saisi = batimentA(this.world, tx, ty);
+        continue;
+      }
       if (down.double) this.useAt(tx, ty);
       else this.clickWorld(tx, ty);
     }
@@ -904,6 +989,15 @@ class Game {
   render(): void {
     const ctx = this.canvas.getContext('2d')!;
     this.renderer.render(this.world, this.avatar, this.clock, this.canvas.width, this.canvas.height);
+
+    if (this.editeur.actif) {
+      const { tx, ty } = this.renderer.camera.screenToWorld(this.input.mouseX, this.input.mouseY);
+      this.editeur.curseur = this.world.inBounds(tx, ty) ? { tx, ty } : null;
+      dessinerEditeur(
+        ctx, this.world, this.renderer.camera, this.editeur,
+        this.uiScale, this.canvas.width, this.canvas.height,
+      );
+    }
 
     ctx.setTransform(this.uiScale, 0, 0, this.uiScale, 0, 0);
     this.ui.party = compagnons(this.world.actors);

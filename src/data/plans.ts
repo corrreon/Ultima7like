@@ -280,9 +280,45 @@ function retourner(rows: string[]): string[] {
   return [...rows].reverse();
 }
 
+/**
+ * Deplacements demandes par l'editeur, par nom de batiment.
+ *
+ * L'editeur ne modifie pas les plans eux-memes : il pose un calque par-dessus.
+ * Les plans restent donc la source ecrite, et une session d'edition se termine
+ * en recopiant les origines dans ce fichier — `exporterOrigines` les donne
+ * toutes faites.
+ */
+const deplacements = new Map<string, { ox: number; oy: number }>();
+
+/** Deplace un batiment. L'appelant doit reconstruire la carte ensuite. */
+export function deplacerPlan(name: string, ox: number, oy: number): void {
+  deplacements.set(name, { ox, oy });
+}
+
+/** Oublie tous les deplacements de l'editeur. */
+export function reinitialiserDeplacements(): void {
+  deplacements.clear();
+}
+
+/**
+ * Les origines a recopier dans ce fichier apres une session d'edition.
+ *
+ * On n'exporte que ce qui a bouge : une liste de treize lignes dont douze
+ * inchangees se relit mal, et rien ne dit ce qu'on vient de faire.
+ */
+export function exporterOrigines(): string {
+  if (deplacements.size === 0) return 'Aucun batiment deplace.';
+  return [...deplacements.entries()]
+    .map(([name, { ox, oy }]) => `${name} : ox: ${ox}, oy: ${oy}`)
+    .join('\n');
+}
+
 /** Tous les plans de la carte, dans l'ordre de pose. */
 export function tousLesPlans(): Plan[] {
-  return [...BATIMENTS_PUBLICS, ...quartierResidentiel()];
+  return [...BATIMENTS_PUBLICS, ...quartierResidentiel()].map((plan) => {
+    const bouge = deplacements.get(plan.name);
+    return bouge ? { ...plan, ...bouge } : plan;
+  });
 }
 
 /**

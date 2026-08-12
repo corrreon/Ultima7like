@@ -23,6 +23,7 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | Dégainer / rengainer | `C` | bouton **Armes** |
 | Pause | `P` | — |
 | Menu (sauver, charger, recommencer) | `M` | bouton **Menu** |
+| Éditeur de carte | `F2` | — |
 | Fermer | `Échap` | bouton **Fermer** |
 | Sauver / charger | `F5` / `F9` (`F8` : nouvelle partie) | par le **Menu** |
 

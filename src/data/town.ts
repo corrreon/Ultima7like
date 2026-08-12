@@ -410,7 +410,12 @@ function fillContainers(world: World): void {
 }
 
 /** Construit la carte complete. */
-export function buildTown(seed = 1337): World {
+/**
+ * @param strict Leve si les plans sont incoherents. Vrai partout sauf dans
+ * l'editeur, ou un chevauchement passager doit s'afficher au lieu de faire
+ * disparaitre le jeu.
+ */
+export function buildTown(seed = 1337, strict = true): World {
   const world = new World(WORLD_SIZE, WORLD_SIZE);
   const rng = new Rng(seed);
 
@@ -457,7 +462,7 @@ export function buildTown(seed = 1337): World {
   // tests passent par ce chemin, donc un plan casse ne franchit jamais un
   // commit.
   const problemes = validerPlans(plans, WORLD_SIZE);
-  if (problemes.length > 0) {
+  if (problemes.length > 0 && strict) {
     throw new Error(`Plans de carte invalides :\n  ${problemes.join('\n  ')}`);
   }
   for (const plan of plans) stampBuilding(world, plan);

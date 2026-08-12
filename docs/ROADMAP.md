@@ -185,8 +185,16 @@ un chez-soi.
       courte, dont un symbole est inconnu ou dont un bâtiment n'a pas de porte.
       C'est le chevauchement qui comptait : à cinq bâtiments posés à la main il
       se voit, à soixante le second écrase le premier en silence
-- [ ] Reste ouvert : les habitants n'ont pas de portrait propre, et le quartier
-      est fait de huit maisons identiques
+- [x] **Quatre plans de maison** au lieu d'un : ce qui varie est ce qui se voit
+      de loin — largeur, profondeur, position de la porte, décrochement
+- [x] **Sauvegarde allégée** : l'enveloppe des bâtiments (57 % des objets) n'est
+      plus stockée mais reposée par le générateur. 148 Ko → 79 Ko
+- [x] **Éditeur d'implantation** (`F2`) : emprises, noms, origines, et les
+      reproches de la validation en direct. On saisit un bâtiment, les flèches
+      le déplacent, la carte se reconstruit. Les origines s'impriment dans la
+      console à la sortie
+- [ ] Reste ouvert : les habitants n'ont pas de portrait propre ; l'éditeur ne
+      pose que des bâtiments existants, il n'en dessine pas de nouveaux
 
 ## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
