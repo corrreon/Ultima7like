@@ -196,10 +196,31 @@ un chez-soi.
 - [ ] Reste ouvert : les habitants n'ont pas de portrait propre ; l'éditeur ne
       pose que des bâtiments existants, il n'en dessine pas de nouveaux
 
+## Fait — la magie (v1.1)
+
+Le dernier grand système d'Ultima VII qui manquait. Ce qui le distingue d'une
+liste de pouvoirs tient en trois points, tous repris ici :
+
+- [x] **Les réactifs sont des objets ordinaires** : ils se ramassent,
+      s'achètent chez Mireille, se volent, pèsent dans le sac. Un sort est donc
+      une dépense, pas un bouton — et le moteur n'a rien de spécial à faire
+- [x] **Le grimoire est un objet** : sans lui, aucun sort. On peut le poser, le
+      perdre, se le faire prendre
+- [x] **Le coût est double** : des réactifs consommés *et* de la magie qui
+      revient d'elle-même. L'un limite la répétition d'un sort, l'autre
+      l'enchaînement de plusieurs ; un seul des deux rendrait la magie gratuite
+      ou inutilisable
+- [x] Quatre sorts, un par usage : Guérison, Lumière, Trait de foudre,
+      Ouverture — chacun répond à une situation où le joueur était sans recours
+- [x] Le panneau dit **pourquoi** un sort n'est pas lançable, et affiche la
+      magie disponible. Un sort simplement grisé oblige à deviner ce qui manque
+
 ## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
-- [ ] **Magie** : réactifs, grimoire, sorts comme usecode
-- [ ] **Serrures** : les clefs ont déjà une `quality`, rien ne s'en sert
+- [ ] **Serrures** : les clefs ont une `quality` et le sort d'Ouverture s'en
+      sert déjà, mais aucune porte du bourg n'est verrouillée
+- [ ] **Portraits des habitants quelconques** : ils empruntent celui de leur
+      espèce
 
 ## Puis — l'échelle
 

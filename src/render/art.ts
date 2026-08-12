@@ -1212,6 +1212,56 @@ function smallItem(draw: (ctx: Ctx2D) => void): Sprite {
 }
 
 const itemPainters: Record<string, (ctx: Ctx2D) => void> = {
+  // Le grimoire : un livre ferme, tranche doree, vu de trois quarts. Ce qui le
+  // distingue d'une simple boite est l'epaisseur des pages sur le cote.
+  spellbook: (ctx) => {
+    px(ctx, 3, 5, 10, 8, tone('royal', 1));
+    px(ctx, 3, 5, 10, 1, tone('royal', 3));
+    px(ctx, 4, 6, 8, 6, tone('royal', 2));
+    px(ctx, 12, 6, 2, 6, tone('sand', 3)); // tranche des pages
+    px(ctx, 12, 6, 2, 1, tone('sand', 4));
+    px(ctx, 6, 8, 4, 1, tone('gold', 3)); // fermoir
+    px(ctx, 7, 7, 2, 3, tone('gold', 4));
+    px(ctx, 3, 12, 10, 1, tone('royal', 0));
+  },
+  // Les quatre reactifs se distinguent par la **silhouette** autant que par la
+  // couleur : a seize pixels, deux taches de teintes voisines se confondent.
+  ginseng: (ctx) => {
+    px(ctx, 7, 6, 2, 6, tone('sand', 2)); // racine fourchue
+    px(ctx, 5, 10, 2, 3, tone('sand', 1));
+    px(ctx, 9, 10, 2, 3, tone('sand', 1));
+    px(ctx, 7, 6, 1, 6, tone('sand', 3));
+    px(ctx, 6, 4, 4, 2, tone('leaf', 3)); // feuilles
+    px(ctx, 5, 3, 2, 2, tone('leaf', 2));
+    px(ctx, 9, 3, 2, 2, tone('leaf', 2));
+  },
+  soufre: (ctx) => {
+    // Un tas de cristaux jaunes, anguleux : rien d'autre dans le jeu n'a cette
+    // silhouette en dents de scie.
+    px(ctx, 4, 10, 8, 3, tone('gold', 1));
+    px(ctx, 5, 8, 2, 3, tone('gold', 3));
+    px(ctx, 8, 7, 2, 4, tone('gold', 4));
+    px(ctx, 10, 9, 2, 2, tone('gold', 2));
+    px(ctx, 4, 12, 8, 1, tone('gold', 0));
+  },
+  perle: (ctx) => {
+    ctx.fillStyle = tone('stone', 0);
+    ctx.beginPath();
+    ctx.arc(8, 10, 3, 0, Math.PI * 2);
+    ctx.fill();
+    px(ctx, 6, 8, 2, 2, tone('royal', 2)); // reflet froid, pas un blanc
+    px(ctx, 7, 8, 1, 1, tone('cloth', 4));
+  },
+  racine: (ctx) => {
+    // Mandragore : un corps trapu et deux jambes, la forme qu'on lui prete.
+    px(ctx, 6, 5, 4, 5, tone('wood', 1));
+    px(ctx, 6, 5, 4, 1, tone('wood', 2));
+    px(ctx, 5, 10, 2, 3, tone('wood', 0));
+    px(ctx, 9, 10, 2, 3, tone('wood', 0));
+    px(ctx, 4, 6, 2, 2, tone('wood', 0));
+    px(ctx, 10, 6, 2, 2, tone('wood', 0));
+    px(ctx, 6, 3, 4, 2, tone('leaf', 2));
+  },
   bread: (ctx) => {
     ctx.fillStyle = tone('sand', 2);
     ctx.beginPath();

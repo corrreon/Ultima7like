@@ -116,6 +116,9 @@ export interface SavedActor extends SavedObject {
   dir: number;
   hp: number;
   mhp: number;
+  /** Magie. Absente pour qui n'en a pas, c'est-a-dire presque tout le monde. */
+  mana?: number;
+  mmana?: number;
   sp: number;
   act: string;
   conv?: string;
@@ -188,6 +191,10 @@ function saveActor(actor: Actor): SavedActor {
     sp: actor.speed,
     act: actor.activity,
   };
+  if (actor.maxMana > 0) {
+    out.mana = Math.round(actor.mana);
+    out.mmana = actor.maxMana;
+  }
   if (actor.conversationId !== undefined) out.conv = actor.conversationId;
   if (actor.inParty) out.party = true;
   if (actor.schedule.length > 0) out.sched = actor.schedule;
@@ -310,6 +317,10 @@ function loadActor(data: SavedActor): Actor {
   actor.py = data.py;
   actor.dir = data.dir as Actor['dir'];
   actor.hp = data.hp;
+  if (data.mmana !== undefined) {
+    actor.maxMana = data.mmana;
+    actor.mana = data.mana ?? data.mmana;
+  }
   actor.inParty = data.party === true;
   actor.activity = data.act as Actor['activity'];
   for (const child of data.c ?? []) {

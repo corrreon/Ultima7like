@@ -26,7 +26,8 @@ import { ConversationState, getConversation } from './script/conversation';
 import { applyEffect, journal, refreshWorldFlags } from './script/quests';
 import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
 import { accorderCombat, compagnons, congedier } from './sim/party';
-import { HEURE_REVEIL, reposer } from './sim/repos';
+import { HEURE_REVEIL, reposer, soigner } from './sim/repos';
+import { SORTS, obstacle, payer, regenerer, sortParId, type Sort } from './sim/magie';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { aUnUsage, use, type UsecodeContext } from './script/usecode';
 import { LANDMARKS, buildTown, reposerEnveloppe, WORLD_SIZE } from './data/town';
@@ -52,6 +53,11 @@ const TILES_WIDE_PHONE = 13;
 
 /** Intervalle de sauvegarde automatique, en secondes reelles. */
 const AUTOSAVE_SECONDS = 30;
+
+/** Duree du sort de lumiere, en secondes reelles. */
+const DUREE_LUMIERE = 90;
+/** Portee du trait de foudre. Plus loin que l'epee : c'est tout son interet. */
+const PORTEE_SORT = 7;
 
 class Game {
   private readonly canvas: HTMLCanvasElement;
@@ -82,6 +88,13 @@ class Game {
    * densite et illisible sur un telephone.
    */
   private uiScale = 1;
+  /**
+   * Halo du sort de lumiere : rayon, et secondes restantes.
+   *
+   * Une torche qui ne se consume pas serait un sort a lancer une fois pour
+   * toutes ; la duree est ce qui en fait une depense.
+   */
+  private halo: { rayon: number; restant: number } | null = null;
   /** Calque d'edition de carte. Voir src/render/editor.ts. */
   private readonly editeur: EtatEditeur = {
     actif: false, saisi: null, curseur: null, problemes: [],
@@ -377,6 +390,17 @@ class Game {
     this.moveAvatar(dt);
     this.fightNearby(dt);
 
+    // La magie revient d'elle-meme, et le halo s'eteint. Les deux avant l'IA :
+    // un sort lance ce tick doit deja compter.
+    regenerer(this.avatar, dt);
+    if (this.halo) {
+      this.halo.restant -= dt;
+      if (this.halo.restant <= 0) {
+        this.halo = null;
+        this.ui.addLog('La lumiere s\'eteint.');
+      }
+    }
+
     this.ai.beginFrame();
     for (const actor of this.world.actors) {
       if (actor === this.avatar) continue;
@@ -397,6 +421,7 @@ class Game {
     for (const code of this.input.pressed) {
       if (code === 'KeyI') this.openBag();
       else if (code === 'KeyJ') this.toggleJournal();
+      else if (code === 'KeyG') this.toggleGrimoire();
       else if (code === 'KeyC') this.toggleCombat();
       else if (code === 'KeyP') this.togglePause();
       else if (code === 'KeyM') this.ui.menu = !this.ui.menu;
@@ -483,6 +508,88 @@ class Game {
     this.editeur.problemes = validerPlans(tousLesPlans(), WORLD_SIZE);
   }
 
+  /** Ouvre ou ferme le grimoire, en recalculant ce qui est lancable. */
+  private toggleGrimoire(): void {
+    this.ui.grimoire = this.ui.grimoire
+      ? null
+      : SORTS.map((sort) => ({ sort, obstacle: obstacle(sort, this.avatar) }));
+  }
+
+  /**
+   * Lance un sort.
+   *
+   * Le cout est preleve **avant** l'effet : un sort dont l'effet ne trouve pas
+   * sa cible a quand meme coute, comme une fleche tiree reste perdue si elle
+   * rate. Sans cela, « Trait de foudre » sans ennemi a portee deviendrait un
+   * moyen gratuit de verifier qu'il n'y en a pas.
+   */
+  private lancerSort(sort: Sort): void {
+    if (!payer(sort, this.avatar)) return;
+    this.ui.grimoire = null;
+
+    switch (sort.effet) {
+      case 'soin': {
+        const rendus = soigner(this.avatar, sort.puissance);
+        this.ui.addLog(rendus > 0
+          ? `Guerison : +${rendus} points de vie.`
+          : 'Guerison : vous etiez deja intact.');
+        break;
+      }
+      case 'lumiere':
+        this.halo = { rayon: sort.puissance, restant: DUREE_LUMIERE };
+        this.ui.addLog('Une lumiere froide vous accompagne.');
+        break;
+      case 'foudre': {
+        const cible = cibleLaPlusProche(this.avatar, this.world.actors, PORTEE_SORT);
+        if (!cible) {
+          this.ui.addLog('Le trait part et se perd : personne a portee.');
+          break;
+        }
+        // On passe par le meme chemin qu'un coup d'epee : c'est lui qui fait
+        // tomber le butin, retire la cible du groupe et nettoie les cibles des
+        // autres. Un sort qui tuerait « a cote » de ce chemin laisserait un
+        // cadavre que personne n'a depouille et des acteurs visant un absent.
+        cible.hp -= sort.puissance;
+        this.onCoup(this.avatar, cible, {
+          touche: true,
+          degats: sort.puissance,
+          arme: null,
+          fatal: cible.hp <= 0,
+        });
+        break;
+      }
+      case 'ouverture': {
+        const porte = this.porteVerrouilleeProche();
+        if (!porte) {
+          this.ui.addLog('Aucune serrure a portee.');
+          break;
+        }
+        porte.quality = 0;
+        porte.frame = 1;
+        this.ui.addLog('La serrure cede.');
+        break;
+      }
+    }
+  }
+
+  /** La porte verrouillee la plus proche, a portee d'interaction. */
+  private porteVerrouilleeProche(): GameObject | null {
+    const ax = Math.round(this.avatar.px);
+    const ay = Math.round(this.avatar.py);
+    for (let rayon = 0; rayon <= INTERACT_RANGE; rayon++) {
+      for (let dy = -rayon; dy <= rayon; dy++) {
+        for (let dx = -rayon; dx <= rayon; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rayon) continue;
+          const porte = this.world
+            .objectsAt(ax + dx, ay + dy)
+            .find((o) => o.shape.door && o.quality > 0 && o.frame === 0);
+          if (porte) return porte;
+        }
+      }
+    }
+    return null;
+  }
+
   private toggleJournal(): void {
     this.ui.journal = this.ui.journal ? null : journal(this.flags);
   }
@@ -545,19 +652,21 @@ class Game {
    * qu'il portait.
    */
   private onCoup(attaquant: Actor, cible: Actor, coup: ReturnType<typeof frapper>): void {
-    const nom = attaquant === this.avatar ? 'Vous' : attaquant.displayName;
+    // « Vous touche » trainait depuis le premier jet du combat : le sujet
+    // changeait, pas le verbe.
+    const soi = attaquant === this.avatar;
+    const nom = soi ? 'Vous' : attaquant.displayName;
+    const qui = cible === this.avatar ? 'l\'Avatar' : cible.displayName;
     if (!coup.touche) {
-      if (attaquant === this.avatar || cible === this.avatar) {
-        this.ui.addLog(`${nom} manque ${cible === this.avatar ? 'l\'Avatar' : cible.displayName}.`);
+      if (soi || cible === this.avatar) {
+        this.ui.addLog(`${nom} ${soi ? 'manquez' : 'manque'} ${qui}.`);
       }
       return;
     }
 
     cible.say(`-${coup.degats}`, 0.8);
-    if (attaquant === this.avatar || cible === this.avatar) {
-      this.ui.addLog(
-        `${nom} touche ${cible === this.avatar ? 'l\'Avatar' : cible.displayName} — ${coup.degats} points.`,
-      );
+    if (soi || cible === this.avatar) {
+      this.ui.addLog(`${nom} ${soi ? 'touchez' : 'touche'} ${qui} — ${coup.degats} points.`);
     }
 
     if (!coup.fatal) {
@@ -683,6 +792,9 @@ class Game {
         return true;
       case 'slot':
         this.handleSlotClick(hit.window, hit.item);
+        return true;
+      case 'sort':
+        this.lancerSort(hit.sort);
         return true;
       case 'topic':
         this.selectTopic(hit.topic.id);
@@ -988,6 +1100,7 @@ class Game {
 
   render(): void {
     const ctx = this.canvas.getContext('2d')!;
+    this.renderer.halo = this.halo?.rayon ?? 0;
     this.renderer.render(this.world, this.avatar, this.clock, this.canvas.width, this.canvas.height);
 
     if (this.editeur.actif) {
@@ -1001,6 +1114,7 @@ class Game {
 
     ctx.setTransform(this.uiScale, 0, 0, this.uiScale, 0, 0);
     this.ui.party = compagnons(this.world.actors);
+    this.ui.magie = { actuelle: this.avatar.mana, max: this.avatar.maxMana };
     this.ui.render(
       ctx,
       this.avatar,
@@ -1067,6 +1181,9 @@ loop.start();
   // depuis l'exterieur. C'est une question a laquelle on ne peut pas repondre
   // en regardant l'ecran.
   findPath,
+  // La magie : de quoi lancer un sort depuis la console et verifier ce qu'il
+  // consomme, ce qu'aucune capture d'ecran ne montre.
+  sortParId,
   get world() {
     return game.world;
   },

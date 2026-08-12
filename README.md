@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 169 tests
+npm test         # 176 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -20,6 +20,7 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | Prendre en main / poser | clic sur l'objet | toucher l'objet |
 | Sac | `I` | bouton **Sac** |
 | Journal de quêtes | `J` | bouton **Notes** |
+| Grimoire | `G` | — |
 | Dégainer / rengainer | `C` | bouton **Armes** |
 | Pause | `P` | — |
 | Menu (sauver, charger, recommencer) | `M` | bouton **Menu** |
@@ -231,6 +232,9 @@ sentier.
   en formation et dégainent avec le meneur.
 - **Commerce** — achat et vente à partir de `shape.value`, avec la bourse du
   marchand comme limite réelle.
+- **Magie** (`G`) — quatre sorts, un par usage : soigner, éclairer, frapper,
+  ouvrir. Le coût est double — des réactifs qui sont des objets ordinaires, et
+  de la magie qui revient d'elle-même.
 - **Jour/nuit** — lumière ambiante interpolée, réverbères qui s'allument au
   crépuscule, torche transportable.
 - **Mobile** — stick virtuel, bouton *Agir* qui vise l'élément interactif le

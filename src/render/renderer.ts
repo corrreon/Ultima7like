@@ -57,6 +57,8 @@ export function isFloorProp(obj: GameObject): boolean {
  * de tri suffisante dans la quasi-totalite des cas.
  */
 export class Renderer {
+  /** Rayon du sort de lumiere en cours, 0 s'il n'y en a pas. */
+  halo = 0;
   readonly camera = new Camera();
   private readonly lighting = new Lighting();
   private readonly drawables: Drawable[] = [];
@@ -417,6 +419,12 @@ export class Renderer {
     const torch = avatar.findItem('torch');
     if (torch && torch.quality === 1) {
       lights.push({ x: avatar.px, y: avatar.py, radius: 5.5, intensity: 0.92 });
+    }
+    // Sort de lumiere : une lueur froide, plus large qu'une torche et sans
+    // vacillement — c'est ce qui la distingue d'une flamme au premier coup
+    // d'oeil, sans qu'aucun texte n'ait a le dire.
+    if (this.halo > 0) {
+      lights.push({ x: avatar.px, y: avatar.py, radius: this.halo, intensity: 0.95 });
     }
     // Halo minimal autour du joueur, pour rester jouable de nuit sans torche.
     lights.push({ x: avatar.px, y: avatar.py, radius: 2.2, intensity: 0.3 });

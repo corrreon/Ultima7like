@@ -7,6 +7,7 @@ export type Activity = 'stand' | 'wander' | 'sleep' | 'eat' | 'work' | 'patrol' 
 export interface ActorInit extends ObjectInit {
   displayName: string;
   maxHp?: number;
+  maxMana?: number;
   speed?: number;
   schedule?: ScheduleEntry[];
   conversationId?: string;
@@ -30,6 +31,15 @@ export class Actor extends GameObject {
   speed: number;
   hp: number;
   maxHp: number;
+  /**
+   * Magie disponible et maximum.
+   *
+   * Sur l'acteur et non sur une classe de personnage : un brigand en a zero,
+   * l'Avatar en a soixante, et rien n'interdit d'en donner a un PNJ le jour ou
+   * il devra lancer un sort.
+   */
+  mana = 0;
+  maxMana = 0;
   /** Chemin restant a parcourir, en tuiles. */
   path: Array<{ tx: number; ty: number }> = [];
   activity: Activity = 'stand';
@@ -84,6 +94,8 @@ export class Actor extends GameObject {
     this.speed = init.speed ?? WALK_SPEED;
     this.maxHp = init.maxHp ?? 30;
     this.hp = this.maxHp;
+    this.maxMana = init.maxMana ?? 0;
+    this.mana = this.maxMana;
     this.schedule = init.schedule ?? [];
     if (init.conversationId !== undefined) this.conversationId = init.conversationId;
     if (init.home !== undefined) this.home = init.home;

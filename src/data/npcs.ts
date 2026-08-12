@@ -58,6 +58,7 @@ export function populate(world: World): Population {
     tx: L.avatarStart.tx,
     ty: L.avatarStart.ty,
     maxHp: 60,
+    maxMana: 60,
     speed: 3.6,
   });
   // Equipement de depart : de quoi manger, s'eclairer et payer.
@@ -68,6 +69,14 @@ export function populate(world: World): Population {
   avatar.add(new GameObject({ shape: 'torch' }));
   avatar.add(new GameObject({ shape: 'dagger' }));
   avatar.add(new GameObject({ shape: 'gold', quantity: 25 }));
+  // Le grimoire et de quoi lancer deux ou trois sorts. Partir sans grimoire
+  // rendrait la magie invisible : rien dans le jeu ne dirait qu'elle existe.
+  avatar.add(new GameObject({ shape: 'spellbook' }));
+  const reactifs = new GameObject({ shape: 'bag', name: 'Sachet de reactifs' });
+  for (const [shape, quantity] of [['ginseng', 3], ['soufre', 3], ['perle', 2], ['racine', 2]] as const) {
+    reactifs.add(new GameObject({ shape, quantity }));
+  }
+  avatar.add(reactifs);
   world.addActor(avatar);
 
   const npcs: Actor[] = [];
@@ -90,7 +99,8 @@ export function populate(world: World): Population {
     ],
   });
   mireille.add(new GameObject({ shape: 'key', quality: 1 }));
-  approvisionner(mireille, 90, ['bread', 'bread', 'ale', 'ale', 'ale', 'apple', 'apple', 'ham']);
+  approvisionner(mireille, 90, ['bread', 'bread', 'ale', 'ale', 'ale', 'apple', 'apple', 'ham',
+    'ginseng', 'soufre', 'perle', 'racine']);
   npcs.push(mireille);
 
   // Aldric : la journee type d'un artisan.

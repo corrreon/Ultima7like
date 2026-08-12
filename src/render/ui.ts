@@ -3,6 +3,20 @@ import type { Actor } from '../objects/actor';
 import type { GameObject } from '../objects/gameobject';
 import { getPortrait, getSprite } from './art';
 import type { ConversationState, Topic } from '../script/conversation';
+import type { Obstacle, Sort } from '../sim/magie';
+
+/** Ce qui manque, dit en clair plutot que par un sort grise. */
+const MANQUE: Record<Obstacle, string> = {
+  grimoire: 'Il vous faudrait un grimoire.',
+  magie: 'Pas assez de magie. Elle revient d\'elle-meme.',
+  reactifs: 'Il vous manque un reactif.',
+};
+
+/** Un sort du grimoire, avec ce qui empeche eventuellement de le lancer. */
+export interface LigneSort {
+  sort: Sort;
+  obstacle: Obstacle | null;
+}
 import type { QuestEntry } from '../script/quests';
 import { bourse, etal, prixAchat, prixVente, vendables } from '../script/commerce';
 
@@ -44,7 +58,8 @@ export type UiHit =
   | { kind: 'slot'; window: ContainerWindow; item: GameObject | null }
   | { kind: 'title'; window: ContainerWindow }
   | { kind: 'close'; window: ContainerWindow }
-  | { kind: 'topic'; topic: Topic };
+  | { kind: 'topic'; topic: Topic }
+  | { kind: 'sort'; sort: Sort };
 
 /** Commandes du menu, celles qui n'ont pas de bouton propre. */
 export type MenuAction = 'save' | 'load' | 'restart' | 'close';
@@ -69,6 +84,10 @@ export class Ui {
   conversation: { npc: Actor; state: ConversationState; reply: string } | null = null;
   /** Journal de quetes ouvert. Ce qu'il montre est deduit des drapeaux. */
   journal: QuestEntry[] | null = null;
+  /** Grimoire ouvert : la liste des sorts, avec ce qui empeche de les lancer. */
+  grimoire: LigneSort[] | null = null;
+  /** Magie disponible, affichee en tete du grimoire. */
+  magie = { actuelle: 0, max: 0 };
   /** L'Avatar a degaine. */
   combat = false;
   /** Le monde est fige. */
@@ -84,6 +103,7 @@ export class Ui {
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
   private tradeRects: Array<{ x: number; y: number; w: number; h: number; item: GameObject; buy: boolean }> = [];
   private menuRects: Array<{ x: number; y: number; w: number; h: number; action: MenuAction }> = [];
+  private sortRects: Array<{ x: number; y: number; w: number; h: number; sort: Sort }> = [];
   private mouseX = 0;
   private mouseY = 0;
 
@@ -131,6 +151,10 @@ export class Ui {
       this.trade = null;
       return true;
     }
+    if (this.grimoire) {
+      this.grimoire = null;
+      return true;
+    }
     if (this.journal) {
       this.journal = null;
       return true;
@@ -170,6 +194,7 @@ export class Ui {
     for (const window of this.windows) this.drawWindow(ctx, window, width, height);
     if (this.conversation) this.drawConversation(ctx, width, height);
     if (this.journal) this.drawJournal(ctx, width, height);
+    if (this.grimoire) this.drawGrimoire(ctx, width, height);
     if (this.trade) this.drawTrade(ctx, width, height);
     if (this.menu) this.drawMenu(ctx, width, height);
     if (this.held) this.drawHeld(ctx);
@@ -458,6 +483,63 @@ export class Ui {
   }
 
   /**
+   * Le grimoire.
+   *
+   * Chaque sort affiche son cout et ses reactifs, et **pourquoi** il n'est pas
+   * lancable quand il ne l'est pas. Un sort simplement grise oblige a deviner
+   * ce qui manque, et la reponse n'est pas dans le panneau : elle est dans le
+   * sac.
+   */
+  private drawGrimoire(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const lignes = this.grimoire!;
+    const w = Math.min(width - 48, 460);
+    const x = Math.round((width - w) / 2);
+    const panelH = 52 + lignes.length * 30 + 26;
+    const y = Math.max(8, Math.round((height - panelH) / 2) - this.bottomInset);
+
+    ctx.fillStyle = 'rgba(20, 16, 11, 0.96)';
+    ctx.fillRect(x, y, w, panelH);
+    carvedFrame(ctx, x, y, w, panelH);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2c98a';
+    ctx.fillText('Grimoire', x + 16, y + 24);
+    // La magie disponible, en tete : sans elle, « pas assez de magie » ne dit
+    // pas combien il en manque ni combien de temps attendre.
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#8fb2d8';
+    ctx.fillText(`${Math.floor(this.magie.actuelle)} / ${this.magie.max} magie`, x + w - 16, y + 24);
+    ctx.textAlign = 'left';
+
+    this.sortRects = [];
+    let ly = y + 48;
+    for (const { sort, obstacle } of lignes) {
+      const lancable = obstacle === null;
+      ctx.fillStyle = lancable ? '#e8e0cc' : '#7d7461';
+      ctx.fillText(`${sort.nom}`, x + 16, ly);
+
+      ctx.fillStyle = lancable ? '#b9ad8f' : '#6d6552';
+      const cout = `${sort.cout} magie · ${sort.reactifs.join(', ')}`;
+      ctx.textAlign = 'right';
+      ctx.fillText(cout, x + w - 16, ly);
+      ctx.textAlign = 'left';
+
+      ctx.fillStyle = lancable ? '#8d8570' : '#a2564c';
+      ctx.fillText(
+        lancable ? sort.description : MANQUE[obstacle],
+        x + 16,
+        ly + 12,
+      );
+
+      if (lancable) this.sortRects.push({ x: x + 8, y: ly - 14, w: w - 16, h: 28, sort });
+      ly += 30;
+    }
+
+    ctx.fillStyle = '#7d7461';
+    ctx.fillText('Cliquer un sort pour le lancer · Echap pour fermer', x + 16, y + panelH - 10);
+  }
+
+  /**
    * Journal de quetes.
    *
    * Les etapes franchies restent lisibles, barrees d'une puce pleine ; la
@@ -645,6 +727,17 @@ export class Ui {
 
   /** Determine ce qui se trouve sous un point de l'ecran. */
   hitTest(x: number, y: number): UiHit {
+    if (this.grimoire) {
+      for (const rect of this.sortRects) {
+        if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
+          return { kind: 'sort', sort: rect.sort };
+        }
+      }
+      // Modal : sans cela un clic a cote du panneau traverse jusqu'au monde et
+      // fait marcher l'Avatar pendant qu'on choisit un sort.
+      return { kind: 'modal' };
+    }
+
     if (this.menu) {
       for (const rect of this.menuRects) {
         if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {

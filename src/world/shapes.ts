@@ -259,6 +259,16 @@ def({ id: 'dagger', name: 'Dague', kind: 'object', footprint: [1, 1], height: 1,
 def({ id: 'sword', name: 'Epee', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 60, volume: 6, damage: 8, value: 60 });
 def({ id: 'hammer', name: 'Marteau de forge', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 40, volume: 4, damage: 5, value: 20 });
 def({ id: 'torch', name: 'Torche', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 10, volume: 2, light: 4, value: 4 });
+// --- Magie ----------------------------------------------------------------
+// Les reactifs sont des objets ordinaires : ils se ramassent, s'achetent, se
+// volent et pesent dans le sac. C'est ce qui fait qu'un sort est une depense
+// plutot qu'un bouton.
+def({ id: 'spellbook', name: 'Grimoire', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 30, volume: 6, value: 120 });
+def({ id: 'ginseng', name: 'Ginseng', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 6, stackable: true });
+def({ id: 'soufre', name: 'Soufre', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 5, stackable: true });
+def({ id: 'perle', name: 'Perle noire', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 12, stackable: true });
+def({ id: 'racine', name: 'Racine de mandragore', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 1, volume: 0, value: 15, stackable: true });
+
 def({ id: 'lute', name: 'Luth', kind: 'object', footprint: [1, 1], height: 1, frames: 1, takeable: true, weight: 30, volume: 8, value: 45 });
 
 // --- Acteurs --------------------------------------------------------------
