@@ -1590,6 +1590,35 @@ export function buildArt(): void {
 
   buildTransitions();
   buildKerbs();
+  verifierFrames();
+}
+
+/**
+ * Le registre annonce-t-il le bon nombre de dessins ?
+ *
+ * `getSprite` fait un modulo sur la longueur reelle, si bien qu'un ecart entre
+ * le registre et l'art ne casse rien et ne se voit nulle part. Huit shapes en
+ * avaient accumule un — le mur en declarait une pour trois variantes dessinees,
+ * les terrains la moitie des leurs.
+ *
+ * Ce n'est pas benin : c'est `shape.frames` qui decide combien de frames une
+ * planche doit remplacer. Sous-declaree, une shape se retrouve peinte pour
+ * partie et procedurale pour le reste, au milieu de la meme facade.
+ *
+ * Un avertissement plutot qu'une exception : une incoherence de donnees ne doit
+ * pas empecher de jouer, et la console est l'endroit ou celui qui ajoute un
+ * dessin la lira dans la seconde.
+ */
+function verifierFrames(): void {
+  for (const shape of allShapes()) {
+    const dessines = atlas.get(shape.id)?.length ?? 0;
+    if (dessines > 0 && dessines !== shape.frames) {
+      console.warn(
+        `Shape « ${shape.id} » : le registre declare ${shape.frames} frame(s),`
+        + ` l'art en dessine ${dessines}.`,
+      );
+    }
+  }
 }
 
 const kerbs = new Map<string, Sprite>();

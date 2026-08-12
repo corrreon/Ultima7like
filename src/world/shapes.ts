@@ -89,22 +89,27 @@ function def(shape: ShapeDef): ShapeDef {
 
 // --- Terrains -------------------------------------------------------------
 
-def({ id: 'grass', name: 'Herbe', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4 });
-def({ id: 'dirt', name: 'Terre battue', kind: 'terrain', footprint: [1, 1], height: 0, frames: 2, surface: 'road' });
-def({ id: 'sand', name: 'Sable', kind: 'terrain', footprint: [1, 1], height: 0, frames: 2 });
-def({ id: 'water', name: 'Eau', kind: 'terrain', footprint: [1, 1], height: 0, frames: 2, solid: true, surface: 'water' });
-def({ id: 'stone', name: 'Dalle de pierre', kind: 'terrain', footprint: [1, 1], height: 0, frames: 2 });
-def({ id: 'woodfloor', name: 'Plancher', kind: 'terrain', footprint: [1, 1], height: 0, frames: 2, surface: 'interior' });
+def({ id: 'grass', name: 'Herbe', kind: 'terrain', footprint: [1, 1], height: 0, frames: 6 });
+def({ id: 'dirt', name: 'Terre battue', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4, surface: 'road' });
+def({ id: 'sand', name: 'Sable', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4 });
+def({ id: 'water', name: 'Eau', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4, solid: true, surface: 'water' });
+def({ id: 'stone', name: 'Dalle de pierre', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4 });
+def({ id: 'woodfloor', name: 'Plancher', kind: 'terrain', footprint: [1, 1], height: 0, frames: 4, surface: 'interior' });
 
 // --- Decor et mobilier ----------------------------------------------------
 
-def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, frames: 1, solid: true });
+// Trois variantes : panneau nu, croix de Saint-Andre, fenetre a meneaux. Le
+// registre en declarait une seule alors que l'art en dessine trois — sans
+// consequence tant que rien ne consultait `frames`, mais une planche qui aurait
+// voulu remplacer le mur n'en aurait repeint qu'un tiers, et les deux autres
+// variantes seraient restees procedurales au milieu de la facade.
+def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, frames: 3, solid: true });
 // Toiture : 12 frames = 4 positions en rang x 3 en colonne. Voir art.ts.
 def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 12, roof: true });
 def({ id: 'chimney', name: 'Cheminee', kind: 'object', footprint: [1, 1], height: 3, frames: 1, roof: true });
 def({ id: 'door', name: 'Porte', kind: 'object', footprint: [1, 1], height: 5, frames: 2, solid: true, door: true });
 def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, frames: 6, solid: true });
-def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 1 });
+def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 2 });
 def({ id: 'table', name: 'Table', kind: 'object', footprint: [1, 1], height: 2, frames: 1, solid: true });
 def({ id: 'chair', name: 'Chaise', kind: 'object', footprint: [1, 1], height: 2, frames: 1 });
 // Un lit fait deux tuiles sur deux. En une seule tuile de large il se dessinait
@@ -142,7 +147,9 @@ def({
   kind: 'object',
   footprint: [1, 1],
   height: 5,
-  frames: 1,
+  // Deux : allume et eteint. Le rendu employait deja la frame 1 de jour alors
+  // que le registre n'en declarait qu'une.
+  frames: 2,
   solid: true,
   light: 4,
   lightAtNight: true,

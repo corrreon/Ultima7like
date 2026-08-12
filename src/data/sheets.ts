@@ -242,7 +242,14 @@ export const SHEETS: SheetDef[] = [
     columns: 3,
     rows: 3,
     entries: [
-      { shape: 'lamppost', cell: 0, tilesWide: 1 },
+      // Le reverbere a deux etats — allume la nuit, eteint le jour — et la
+      // planche n'en fournit qu'un dessin. On l'affecte aux deux frames : le
+      // reverbere etait peint la nuit et procédural le jour, ce qui se voyait
+      // au crepuscule, quand il changeait de dessin en meme temps que d'etat.
+      // La difference lumineuse est de toute facon rendue par la passe
+      // d'eclairage, pas par le sprite.
+      { shape: 'lamppost', frame: 0, cell: 0, tilesWide: 1 },
+      { shape: 'lamppost', frame: 1, cell: 0, tilesWide: 1 },
       { shape: 'sconce', frame: 0, cell: 1, tilesWide: 1 },
       { shape: 'torch', cell: 5, tilesWide: 0.5 },
     ],
@@ -277,7 +284,11 @@ export const SHEETS: SheetDef[] = [
       { shape: 'flower', frame: 0, cell: 2, tilesWide: 0.6 },
       { shape: 'flower', frame: 1, cell: 2, tilesWide: 0.6 },
       { shape: 'flower', frame: 2, cell: 8, tilesWide: 0.6 },
-      { shape: 'bush', cell: 3, tilesWide: 1 },
+      // Le buisson est pose sur l'une ou l'autre de ses deux frames au hasard.
+      // N'en peindre qu'une donnait un pre ou un buisson sur deux est dessine
+      // et l'autre procédural, cote a cote.
+      { shape: 'bush', frame: 0, cell: 3, tilesWide: 1 },
+      { shape: 'bush', frame: 1, cell: 3, tilesWide: 1 },
       { shape: 'pot', cell: 4, tilesWide: 1 },
       { shape: 'pebble', frame: 0, cell: 5, tilesWide: 0.45 },
       { shape: 'pebble', frame: 1, cell: 5, tilesWide: 0.45 },

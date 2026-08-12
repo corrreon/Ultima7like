@@ -179,6 +179,12 @@ un chez-soi.
       loger plus de monde demande de bâtir
 - [x] **Se soigner** : manger rend peu et tout de suite, dormir rend tout et
       consomme la nuit. Sans quoi le combat n'avait pas de seconde moitié
+- [x] **Format de carte** : les plans quittent le code pour `data/plans.ts`, la
+      légende devient une table plutôt qu'un `switch`, et `validerPlans` refuse
+      une carte dont deux bâtiments se chevauchent, dont une ligne est trop
+      courte, dont un symbole est inconnu ou dont un bâtiment n'a pas de porte.
+      C'est le chevauchement qui comptait : à cinq bâtiments posés à la main il
+      se voit, à soixante le second écrase le premier en silence
 - [ ] Reste ouvert : les habitants n'ont pas de portrait propre, et le quartier
       est fait de huit maisons identiques
 

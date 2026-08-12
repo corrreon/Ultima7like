@@ -1,6 +1,9 @@
 import { Rng } from '../core/rng';
 import { GameObject } from '../objects/gameobject';
 import { World, type BuildingRegion } from '../world/world';
+import { DEHORS, LEGENDE, tousLesPlans, validerPlans, type Plan } from './plans';
+
+export { LOGIS_PREFIX } from './plans';
 
 /**
  * Le bourg de Valmoret : la carte de demonstration.
@@ -20,156 +23,6 @@ const ROOF_LIFT = 4;
  * les toits de ROOF_LIFT / 2 tuiles pour qu'ils retombent pile sur les murs.
  */
 const ROOF_SHIFT = ROOF_LIFT / 2;
-
-interface Blueprint {
-  name: string;
-  ox: number;
-  oy: number;
-  rows: string[];
-}
-
-const BLUEPRINTS: Blueprint[] = [
-  {
-    name: 'Taverne du Chat Endormi',
-    ox: 26,
-    oy: 24,
-    rows: [
-      '#############',
-      '#===k=k=k===#',
-      '#=b=======b=#',
-      '#=t=c===t=c=#',
-      '#===========#',
-      '#=C===h===B=#',
-      '#=o=====p=o=#',
-      '#=t=c=====t=#',
-      '#####D#######',
-    ],
-  },
-  {
-    name: 'Forge d\'Aldric',
-    ox: 52,
-    oy: 26,
-    rows: [
-      '###########',
-      '#=========#',
-      '#=b=====C=#',
-      '#=========#',
-      '#=a===h===#',
-      '#=========#',
-      '#=B=====t=#',
-      '#=====o===#',
-      '#####D#####',
-    ],
-  },
-  {
-    name: 'Maison de Basile',
-    ox: 30,
-    oy: 48,
-    rows: [
-      '####D#####',
-      '#=====k==#',
-      '#=b====t=#',
-      '#========#',
-      '#=C====c=#',
-      '#=p====o=#',
-      '#=t====B=#',
-      '##########',
-    ],
-  },
-  {
-    name: 'Corps de garde',
-    ox: 54,
-    oy: 48,
-    rows: [
-      '####D####',
-      '#=======#',
-      '#=b===C=#',
-      '#=======#',
-      '#=t===c=#',
-      '#=o===p=#',
-      '#########',
-    ],
-  },
-  {
-    // Plan en L. Une case blanche n'appartient pas au batiment : c'est ce qui
-    // libere la silhouette du bourg des quatre rectangles de depart. La
-    // toiture s'adapte toute seule, chaque colonne ayant son propre faitage.
-    name: 'Halle au grain',
-    ox: 14,
-    oy: 44,
-    rows: [
-      '#######     ',
-      '#=====#     ',
-      '#=k=t=#     ',
-      '#=====######',
-      '#=C========#',
-      '#=========o#',
-      '#=B=====t==#',
-      '######D#####',
-    ],
-  },
-];
-
-/**
- * Prefixe des regions du quartier d'habitation.
- *
- * Les habitants quelconques y trouvent leur lit. On les reconnait par leur nom
- * plutot que par une liste de coordonnees tenue en double : la carte reste la
- * seule source de verite, et deplacer une maison ne demande rien d'autre.
- */
-export const LOGIS_PREFIX = 'Logis';
-
-/**
- * Le quartier d'habitation.
- *
- * Les quatre premiers batiments etaient des lieux de travail ; personne
- * n'habitait nulle part. Vingt-trois habitants qui rentrent le soir dans un
- * champ, ce n'est pas un bourg, c'est un campement.
- *
- * Huit maisons identiques, deux rangees de part et d'autre d'une rue. Elles se
- * ressemblent, et c'est voulu : dans un bourg, les maisons ordinaires se
- * ressemblent. Ce qui les distingue est ce que le mobilier procedural y pose,
- * et surtout qui y dort.
- *
- * Deux lits chacune, soit seize places — le compte exact des habitants
- * quelconques.
- */
-function quartierResidentiel(): Blueprint[] {
-  // Porte au sud pour la rangee du nord, au nord pour celle du sud : toutes
-  // donnent sur la rue, comme des maisons qui bordent une voie.
-  const versLeSud = [
-    '#######',
-    '#=====#',
-    '#=b=b=#',
-    '#=====#',
-    '#=t=c=#',
-    '#=o===#',
-    '###D###',
-  ];
-  const versLeNord = [
-    '###D###',
-    '#=====#',
-    '#=b=b=#',
-    '#=====#',
-    '#=t=c=#',
-    '#=o===#',
-    '#######',
-  ];
-
-  const maisons: Blueprint[] = [];
-  const colonnes = [10, 18, 26, 34];
-  for (const [rangee, oy] of [[0, 6], [1, 16]] as const) {
-    for (const [index, ox] of colonnes.entries()) {
-      maisons.push({
-        name: `${LOGIS_PREFIX} ${rangee * colonnes.length + index + 1}`,
-        ox,
-        oy,
-        rows: rangee === 0 ? versLeSud : versLeNord,
-      });
-    }
-  }
-  return maisons;
-}
 
 /** Lieux nommes, references par les emplois du temps des PNJ. */
 export const LANDMARKS = {
@@ -268,7 +121,7 @@ function onTable(world: World, shape: string, tx: number, ty: number): GameObjec
   return obj;
 }
 
-function stampBuilding(world: World, plan: Blueprint): void {
+function stampBuilding(world: World, plan: Plan): void {
   const height = plan.rows.length;
   const width = Math.max(...plan.rows.map((r) => r.length));
   const charAt = (row: number, col: number): string => plan.rows[row]?.[col] ?? ' ';
@@ -325,62 +178,18 @@ function stampBuilding(world: World, plan: Blueprint): void {
   for (let row = 0; row < height; row++) {
     for (let col = 0; col < width; col++) {
       const char = charAt(row, col);
-      if (char === ' ') continue; // hors du batiment
+      if (char === DEHORS) continue; // hors du batiment
       const tx = plan.ox + col;
       const ty = plan.oy + row;
 
       // Sol : pierre sous les murs, plancher a l'interieur.
       world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx * 3 + ty * 5) % 4);
 
-      switch (char) {
-        case '#': {
-          // Trois variantes de mur reparties de facon deterministe : panneau
-          // nu, croix de Saint-Andre, fenetre a meneaux. Une facade dont
-          // chaque tuile est identique se lit comme une texture repetee, pas
-          // comme un batiment.
-          const hash = (tx * 7 + ty * 13) % 11;
-          const variant = hash === 0 ? 2 : hash === 4 || hash === 8 ? 1 : 0;
-          place(world, 'wall', tx, ty, { frame: variant });
-          break;
-        }
-        case 'D':
-          place(world, 'door', tx, ty);
-          break;
-        case 't':
-          place(world, 'table', tx, ty);
-          break;
-        case 'c':
-          place(world, 'chair', tx, ty);
-          break;
-        case 'b':
-          place(world, 'bed', tx, ty);
-          break;
-        case 'C':
-          place(world, 'chest', tx, ty);
-          break;
-        case 'B':
-          place(world, 'barrel', tx, ty);
-          break;
-        case 'a':
-          place(world, 'anvil', tx, ty);
-          break;
-        case 'h':
-          place(world, 'hearth', tx, ty);
-          break;
-        case 'k':
-          // Les meubles d'une meme rangee sont espaces de deux tuiles : une
-          // parite sur `tx + ty` leur donne a tous la meme frame et
-          // l'alternance n'alterne jamais. D'ou la division par deux.
-          place(world, 'bookshelf', tx, ty, { frame: ((tx >> 1) + ty) % 2 });
-          break;
-        case 'p':
-          place(world, 'pot', tx, ty);
-          break;
-        case 'o':
-          place(world, 'stool', tx, ty);
-          break;
-        default:
-          break; // '=' : plancher nu
+      // La legende est une donnee : ajouter un meuble ne demande pas de
+      // toucher au poseur de batiments.
+      const symbole = LEGENDE[char];
+      if (symbole) {
+        place(world, symbole.shape, tx, ty, { frame: symbole.frame?.(tx, ty) ?? 0 });
       }
 
       // Toiture : decalee pour compenser le lift, et marquee au nom du
@@ -624,7 +433,15 @@ export function buildTown(seed = 1337): World {
   // reste se lit comme un decor pose a cote du bourg.
   stampRoad(world, 10, 14, 45, 15);
 
-  for (const plan of [...BLUEPRINTS, ...quartierResidentiel()]) stampBuilding(world, plan);
+  const plans = tousLesPlans();
+  // Une carte incoherente doit se signaler ici, pas se deviner en jeu. Les
+  // tests passent par ce chemin, donc un plan casse ne franchit jamais un
+  // commit.
+  const problemes = validerPlans(plans, WORLD_SIZE);
+  if (problemes.length > 0) {
+    throw new Error(`Plans de carte invalides :\n  ${problemes.join('\n  ')}`);
+  }
+  for (const plan of plans) stampBuilding(world, plan);
 
   // Vegetation : on evite les routes, les batiments et leurs abords.
   const isFree = (tx: number, ty: number): boolean => {

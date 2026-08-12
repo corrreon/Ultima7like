@@ -13,7 +13,8 @@ import { Input, type PointerDown } from './input/input';
 import { TouchControls } from './input/touch';
 import { Actor } from './objects/actor';
 import { GameObject } from './objects/gameobject';
-import { buildArt, getPortrait, getSprite, overridePortrait, overrideSprite } from './render/art';
+import { buildArt, frameCount, getPortrait, getSprite, overridePortrait, overrideSprite } from './render/art';
+import { allShapes } from './world/shapes';
 import { loadSheets } from './render/atlas';
 import { SHEETS } from './data/sheets';
 import { Renderer } from './render/renderer';
@@ -956,6 +957,12 @@ loop.start();
   // deduire des pixels d'une capture d'ecran.
   getSprite,
   getPortrait,
+  // Nombre de dessins reellement charges pour une shape. Le registre declare
+  // un `frames` de son cote ; les deux doivent concorder, et rien dans le jeu
+  // ne s'en apercoit si ce n'est pas le cas — c'est ainsi que le mur a
+  // longtemps declare une variante alors qu'il en dessinait trois.
+  frameCount,
+  allShapes,
   // Le pathfinding, pour pouvoir demander « pourquoi ce PNJ ne bouge pas ? »
   // depuis l'exterieur. C'est une question a laquelle on ne peut pas repondre
   // en regardant l'ecran.
