@@ -220,4 +220,21 @@ describe('carte de Valmoret', () => {
     expect(chest!.contents.length).toBeGreaterThan(0);
     expect(chest!.totalWeight).toBeGreaterThan(chest!.ownWeight);
   });
+
+  it('ne laisse aucun contenant vide au campement', () => {
+    // Poser une caisse et un sac dans le decor puis les laisser vides est le
+    // meilleur moyen de faire passer trois brigands pour une perte de temps.
+    // La regle vaut pour tout contenant du campement, y compris ceux qu'on y
+    // ajoutera plus tard.
+    const camp = LANDMARKS.camp;
+    const contenants = [...world.allObjects()].filter(
+      (o) => o.isContainer && o.parent === null
+        && Math.max(Math.abs(o.tx - camp.tx), Math.abs(o.ty - camp.ty)) <= 6,
+    );
+    expect(contenants.length).toBeGreaterThanOrEqual(3);
+
+    for (const c of contenants) {
+      expect(c.contents.length, `${c.name} en ${c.tx},${c.ty} est vide`).toBeGreaterThan(0);
+    }
+  });
 });

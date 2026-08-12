@@ -472,6 +472,41 @@ function fillContainers(world: World): void {
     guardChest.add(new GameObject({ shape: 'torch' }));
   }
 
+  // Le butin du campement.
+  //
+  // Trois brigands defendent l'endroit ; s'ils ne gardent rien, le detour ne
+  // paie que la prime, et le decor ment. Ce qu'on trouve ici est ce qu'ils ont
+  // pris sur la route — pas un tresor de donjon, le contenu de quelques
+  // chariots : une bourse, une lame de rechange, des vivres, la biere volee a
+  // la taverne.
+  const camp = LANDMARKS.camp;
+
+  const campCrate = at(camp.tx - 2, camp.ty - 1, 'crate');
+  if (campCrate) {
+    // La bourse se ramasse d'un geste et emporte tout son contenu : c'est la
+    // recompense qui se lit tout de suite, sans avoir a vider la caisse piece
+    // par piece.
+    const bourse = new GameObject({ shape: 'bag', name: 'Bourse de voyageur' });
+    bourse.add(new GameObject({ shape: 'gold', quantity: 45 }));
+    bourse.add(new GameObject({ shape: 'key', quality: 2 }));
+    campCrate.add(bourse);
+    campCrate.add(new GameObject({ shape: 'dagger' }));
+    campCrate.add(new GameObject({ shape: 'torch' }));
+  }
+
+  const campSack = at(camp.tx - 1, camp.ty + 3, 'sack');
+  if (campSack) {
+    campSack.add(new GameObject({ shape: 'ham' }));
+    campSack.add(new GameObject({ shape: 'bread', quantity: 2 }));
+    campSack.add(new GameObject({ shape: 'apple', quantity: 3 }));
+  }
+
+  const campBarrel = at(camp.tx + 3, camp.ty + 2, 'barrel');
+  if (campBarrel) {
+    for (let i = 0; i < 3; i++) campBarrel.add(new GameObject({ shape: 'ale' }));
+    campBarrel.add(new GameObject({ shape: 'gold', quantity: 9 }));
+  }
+
   // Quelques objets simplement poses : la table de taverne doit ressembler a
   // une table de taverne.
   //
