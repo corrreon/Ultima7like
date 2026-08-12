@@ -208,7 +208,7 @@ defineConversation({
   id: 'jehan',
   greeting: 'Halte. ... Non, rien. Circulez, ou parlez, mais decidez-vous.',
   farewell: 'Bonne route. Et pas de tapage apres la nuit tombee.',
-  initial: ['nom', 'garde', 'epee', 'brigands', 'suivre', 'rester', 'adieu'],
+  initial: ['nom', 'garde', 'epee', 'brigands', 'suivre', 'rester', 'prime', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -238,7 +238,7 @@ defineConversation({
     {
       id: 'brigands',
       label: 'Les brigands',
-      text: 'Trois, au sud-ouest, campes sous les arbres. Ils detroussent les colporteurs et rentrent avant la nuit. A un contre trois je n\'y vais pas ; a deux, c\'est autre chose.',
+      text: 'Trois. Prenez la route du sud, et au bout, la ou elle s\'arrete, un sentier part vers le sud-ouest — suivez-le jusqu\'a voir leur feu. Ils detroussent les colporteurs. A un contre trois je n\'y vais pas ; a deux, c\'est autre chose.',
       once: true,
       sets: ['sait_brigands'],
     },
@@ -255,6 +255,14 @@ defineConversation({
       text: 'Ce n\'est pas trop tot. La porte ne se garde pas toute seule.',
       requires: ['compagnon_jehan'],
       effect: 'congedier',
+    },
+    {
+      id: 'prime',
+      label: 'Le campement est vide',
+      text: 'Plus personne sous ces arbres ? Alors la route est libre pour la premiere fois depuis l\'automne. Tenez — la caisse du poste prevoit une prime, autant qu\'elle serve.',
+      requires: ['camp_nettoye'],
+      once: true,
+      effect: 'prime_brigands',
     },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],

@@ -20,12 +20,12 @@ import { Ui, type ContainerWindow } from './render/ui';
 import { ScheduleAI } from './sim/ai';
 import { findPath } from './sim/pathfind';
 import { ConversationState, getConversation } from './script/conversation';
-import { applyEffect, journal, refreshInventoryFlags } from './script/quests';
+import { applyEffect, journal, refreshWorldFlags } from './script/quests';
 import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
 import { accorderCombat, compagnons, congedier } from './sim/party';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { use, type UsecodeContext } from './script/usecode';
-import { buildTown } from './data/town';
+import { LANDMARKS, buildTown } from './data/town';
 import { populate } from './data/npcs';
 import type { World } from './world/world';
 
@@ -276,7 +276,7 @@ class Game {
       this.ai.update(actor, dt);
     }
 
-    refreshInventoryFlags(this.avatar, this.flags);
+    refreshWorldFlags(this.avatar, this.world.actors, LANDMARKS.camp, this.flags);
 
     this.autosaveTimer -= dt;
     if (this.autosaveTimer <= 0) this.save(true);

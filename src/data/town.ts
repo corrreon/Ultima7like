@@ -143,6 +143,45 @@ function stampRoad(world: World, x0: number, y0: number, x1: number, y1: number)
   }
 }
 
+/**
+ * Sentier suivant une ligne brisee.
+ *
+ * Plus etroit qu'une route, et c'est voulu : ce qui mene au campement n'est pas
+ * entretenu. Sa fonction est de se voir depuis la route et de donner une
+ * direction — sans lui, le sud-ouest est une etendue d'herbe identique partout,
+ * et « campes sous les arbres » ne mene nulle part.
+ *
+ * Deux details sans lesquels il ne se lit pas. On avance **une case a la
+ * fois sur un seul axe** : un trace diagonal ne relie ses cases que par les
+ * coins, et les bordures fondues du terrain le transforment alors en taches
+ * eparses plutot qu'en chemin. Et on l'epaissit d'une case, parce qu'une
+ * unique file de terre sur de l'herbe se lit comme du pietinement.
+ */
+function stampTrail(world: World, points: Array<[number, number]>): void {
+  const poser = (x: number, y: number): void => {
+    world.setTerrain(x, y, 'dirt', (x * 5 + y * 3) % 4);
+    world.setTerrain(x + 1, y, 'dirt', (x * 3 + y * 5) % 4);
+  };
+
+  for (let i = 0; i < points.length - 1; i++) {
+    let [x, y] = points[i]!;
+    const [cx, cy] = points[i + 1]!;
+    poser(x, y);
+    // Alternance stricte entre les deux axes : la marche reste connexe par les
+    // cotes, jamais par un seul coin.
+    while (x !== cx || y !== cy) {
+      if (x !== cx) {
+        x += Math.sign(cx - x);
+        poser(x, y);
+      }
+      if (y !== cy) {
+        y += Math.sign(cy - y);
+        poser(x, y);
+      }
+    }
+  }
+}
+
 function stampStone(world: World, x0: number, y0: number, x1: number, y1: number): void {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) world.setTerrain(x, y, 'stone', (x * 3 + y * 7) % 4);
@@ -479,6 +518,11 @@ export function buildTown(seed = 1337): World {
   stampRoad(world, 20, 40, 20, 52); // vers la halle au grain
   stampRoad(world, 21, 40, 33, 40); // liaison est-ouest vers la halle
 
+  // Sentier vers le campement. Il s'arrete a quelques tuiles du feu : les
+  // brigands n'entretiennent pas de chemin jusqu'a chez eux, et le joueur doit
+  // garder la derniere approche a faire.
+  stampTrail(world, [[44, 60], [38, 66], [31, 71], [26, 74]]);
+
   for (const plan of BLUEPRINTS) stampBuilding(world, plan);
 
   // Vegetation : on evite les routes, les batiments et leurs abords.
@@ -563,6 +607,15 @@ export function buildTown(seed = 1337): World {
 
   place(world, 'sign', 32, 33, { name: 'Le Chat Endormi — gite et couvert' });
   place(world, 'sign', 58, 35, { name: 'Aldric, maitre forgeron' });
+
+  // Le campement. Le feu est le point de repere : il eclaire de nuit et se
+  // voit de loin, ce qui donne au sud-ouest un point d'arrivee au lieu d'une
+  // etendue d'herbe. Le reste dit a quoi on a affaire avant meme d'y arriver.
+  const camp = LANDMARKS.camp;
+  place(world, 'hearth', camp.tx + 1, camp.ty + 1);
+  place(world, 'crate', camp.tx - 2, camp.ty - 1);
+  place(world, 'barrel', camp.tx + 3, camp.ty + 2);
+  place(world, 'sack', camp.tx - 1, camp.ty + 3);
 
   fillContainers(world);
   furnishInteriors(world, rng);

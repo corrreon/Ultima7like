@@ -113,6 +113,11 @@ plus assez d'habitants nommés pour que recruter veuille dire quelque chose.
 Mesuré en jeu : à deux, un brigand tombe en cinq secondes contre dix-huit en
 solo, et l'Avatar y laisse seize points de vie au lieu de vingt-quatre.
 
+Deux manques signalés à l'usage et comblés ensuite : le campement n'était
+mentionné dans aucune quête — le journal restait muet alors que Jehan en
+parlait — et rien ne menait à lui. Il a donc fallu une quête complète, un
+sentier qui parte de la route, et un feu de camp qui serve de repère la nuit.
+
 ## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
 - [ ] **Commerce** : achat/vente à partir de `shape.value`, bourse des PNJ

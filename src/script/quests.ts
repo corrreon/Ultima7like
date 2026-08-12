@@ -46,6 +46,18 @@ export const QUESTS: QuestDef[] = [
       { flag: 'luth_rendu', text: 'Rendu a son proprietaire. Il joue ce soir a la taverne.' },
     ],
   },
+  {
+    id: 'brigands',
+    title: 'Les brigands du sud-ouest',
+    startFlag: 'sait_brigands',
+    doneFlag: 'camp_nettoye',
+    steps: [
+      { flag: 'sait_brigands', text: 'Trois brigands campent au sud-ouest, sous les arbres.' },
+      { flag: 'compagnon_jehan', text: 'Jehan accepte de m\'accompagner.' },
+      { flag: 'camp_trouve', text: 'J\'ai trouve leur feu, au bout du sentier.' },
+      { flag: 'camp_nettoye', text: 'La route est libre. Jehan a de quoi me remercier.' },
+    ],
+  },
 ];
 
 export interface QuestEntry {
@@ -67,9 +79,12 @@ export function journal(flags: ReadonlySet<string>): QuestEntry[] {
   const entries: QuestEntry[] = [];
   for (const def of QUESTS) {
     if (!flags.has(def.startFlag)) continue;
+    const done = flags.has(def.doneFlag);
     const steps = def.steps.filter((step) => flags.has(step.flag));
-    const next = def.steps.find((step) => !flags.has(step.flag)) ?? null;
-    entries.push({ def, done: flags.has(def.doneFlag), steps, next });
+    // Une quete achevee n'a plus d'etape suivante, meme si le joueur a saute
+    // une etape facultative en chemin — recruter quelqu'un, par exemple.
+    const next = done ? null : (def.steps.find((step) => !flags.has(step.flag)) ?? null);
+    entries.push({ def, done, steps, next });
   }
   return entries;
 }
@@ -129,6 +144,19 @@ export function applyEffect(effect: string, ctx: EffectContext): boolean {
       return true;
     }
 
+    case 'prime_brigands': {
+      if (!ctx.flags.has('camp_nettoye') || ctx.flags.has('prime_versee')) return false;
+      ctx.flags.add('prime_versee');
+      const prime = new GameObject({ shape: 'gold', quantity: 60 });
+      if (!ctx.avatar.add(prime)) {
+        prime.tx = ctx.avatar.tx;
+        prime.ty = ctx.avatar.ty;
+        ctx.log('Vous etes trop charge : les pieces tombent a vos pieds.');
+      }
+      ctx.log(`${ctx.npc.displayName} vous verse 60 pieces sur la caisse du poste.`);
+      return true;
+    }
+
     case 'recruter': {
       if (!peutRejoindre(ctx.npc, ctx.acteurs)) {
         // On le dit, au lieu de laisser la conversation faire comme si.
@@ -158,15 +186,38 @@ export function applyEffect(effect: string, ctx: EffectContext): boolean {
   }
 }
 
+/** Distance a laquelle on considere avoir trouve le campement. */
+export const VUE_DU_CAMP = 8;
+
 /**
- * Met a jour les drapeaux qui decrivent l'inventaire plutot qu'une parole.
+ * Met a jour les drapeaux que pose le monde, et non une parole.
  *
- * `luth_en_main` n'est pose par aucun dialogue : ramasser le luth est un geste,
- * pas une conversation. On le deduit donc de l'etat du monde, a chaque tour.
+ * Ramasser un luth, arriver en vue d'un feu, abattre le dernier brigand : rien
+ * de tout cela ne passe par une conversation, et pourtant une quete doit
+ * l'enregistrer. On les deduit donc de l'etat du monde a chaque tour, ce qui a
+ * l'avantage de rester juste meme si le joueur s'y prend autrement que prevu —
+ * en trouvant le camp avant d'en avoir entendu parler, par exemple.
  */
-export function refreshInventoryFlags(avatar: Actor, flags: Set<string>): void {
-  // Appelee a chaque tour de boucle : un drapeau deja pose coupe court avant
-  // de parcourir l'arborescence de l'inventaire.
-  if (flags.has('luth_en_main') || flags.has('luth_rendu')) return;
-  if (avatar.findDeep((o) => o.shapeId === 'lute')) flags.add('luth_en_main');
+export function refreshWorldFlags(
+  avatar: Actor,
+  acteurs: readonly Actor[],
+  camp: { tx: number; ty: number },
+  flags: Set<string>,
+): void {
+  if (!flags.has('luth_en_main') && !flags.has('luth_rendu')) {
+    if (avatar.findDeep((o) => o.shapeId === 'lute')) flags.add('luth_en_main');
+  }
+
+  if (!flags.has('camp_trouve')) {
+    const d = Math.max(Math.abs(avatar.tx - camp.tx), Math.abs(avatar.ty - camp.ty));
+    if (d <= VUE_DU_CAMP) flags.add('camp_trouve');
+  }
+
+  // Le camp n'est « nettoye » que si on l'a d'abord trouve : sans cette
+  // condition, le drapeau serait pose des le premier tour d'une partie ou les
+  // brigands n'existeraient pas encore.
+  if (flags.has('camp_trouve') && !flags.has('camp_nettoye')) {
+    const reste = acteurs.some((a) => a.shapeId === 'brigand' && a.isAlive);
+    if (!reste) flags.add('camp_nettoye');
+  }
 }

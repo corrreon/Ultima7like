@@ -3,7 +3,8 @@ import { Actor } from '../src/objects/actor';
 import { buildTown } from '../src/data/town';
 import { populate } from '../src/data/npcs';
 import { ConversationState, getConversation } from '../src/script/conversation';
-import { applyEffect } from '../src/script/quests';
+import { VUE_DU_CAMP, applyEffect, journal, refreshWorldFlags } from '../src/script/quests';
+import { LANDMARKS } from '../src/data/town';
 import {
   MAX_COMPAGNONS,
   accorderCombat,
@@ -153,6 +154,62 @@ describe('recrutement par le dialogue', () => {
     expect(jehan.inParty).toBe(false);
     expect(flags.has('compagnon_jehan')).toBe(false);
     expect(sujets(jehan, flags, avatar)).not.toContain('rester');
+  });
+
+  it('suit la quete des brigands du recit au journal', () => {
+    const { world, avatar, jehan } = monde();
+    const flags = new Set<string>();
+    const logs: string[] = [];
+    const ctx = { avatar, npc: jehan, flags, log: (t: string) => logs.push(t), acteurs: world.actors };
+
+    // Rien tant que Jehan n'en a pas parle : le journal raconte les drapeaux.
+    expect(journal(flags)).toHaveLength(0);
+
+    // 1. Jehan raconte. La quete entre au journal.
+    const chezJehan = sujets(jehan, flags, avatar);
+    expect(chezJehan).toContain('brigands');
+    flags.add('sait_brigands');
+    const debut = journal(flags).find((q) => q.def.id === 'brigands');
+    expect(debut, 'la quete des brigands n\'apparait pas').toBeDefined();
+    expect(debut!.done).toBe(false);
+
+    // 2. Il accepte de suivre.
+    expect(applyEffect('recruter', ctx)).toBe(true);
+    expect(journal(flags).find((q) => q.def.id === 'brigands')!.steps).toHaveLength(2);
+
+    // 3. Arriver en vue du feu pose le drapeau, sans une parole.
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags);
+    expect(flags.has('camp_trouve'), 'trouve le camp depuis le bourg').toBe(false);
+    avatar.tx = LANDMARKS.camp.tx + VUE_DU_CAMP;
+    avatar.ty = LANDMARKS.camp.ty;
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags);
+    expect(flags.has('camp_trouve')).toBe(true);
+
+    // 4. Tant qu'un brigand vit, la quete n'est pas achevee.
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags);
+    expect(flags.has('camp_nettoye')).toBe(false);
+    for (const b of world.actors.filter((a) => a.shapeId === 'brigand')) b.hp = 0;
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags);
+    expect(flags.has('camp_nettoye')).toBe(true);
+
+    const fin = journal(flags).find((q) => q.def.id === 'brigands')!;
+    expect(fin.done).toBe(true);
+    expect(fin.next, 'une quete achevee n\'a plus d\'etape suivante').toBeNull();
+
+    // 5. Et Jehan a de quoi remercier — une seule fois.
+    expect(sujets(jehan, flags, avatar)).toContain('prime');
+    expect(applyEffect('prime_brigands', ctx)).toBe(true);
+    expect(applyEffect('prime_brigands', ctx)).toBe(false);
+  });
+
+  it('n\'annonce pas le camp nettoye avant de l\'avoir trouve', () => {
+    // Sans cette garde, le drapeau tomberait des le premier tour d'une partie
+    // ou les brigands n'existeraient pas.
+    const { world, avatar } = monde();
+    const flags = new Set<string>();
+    for (const b of world.actors.filter((a) => a.shapeId === 'brigand')) b.hp = 0;
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags);
+    expect(flags.has('camp_nettoye')).toBe(false);
   });
 
   it('refuse en le disant quand le groupe est complet', () => {
