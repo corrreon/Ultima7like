@@ -2,6 +2,7 @@ import { GameClock } from './core/clock';
 import { GameLoop } from './core/loop';
 import {
   clearStorage,
+  mapSignature,
   readFromStorage,
   writeToStorage,
   type GameState,
@@ -64,6 +65,8 @@ class Game {
    * combat d'Ultima VII, faite pour reprendre la main, pas pour s'absenter.
    */
   private paused = false;
+  /** Empreinte de la carte neuve, pour ne pas reprendre une partie perimee. */
+  private readonly mapSignature: string;
   /** Drapeaux de conversation partages par tout le jeu. */
   private flags = new Set<string>();
   /** Secondes restantes avant la prochaine sauvegarde automatique. */
@@ -88,16 +91,23 @@ class Game {
     this.input = new Input(this.canvas);
     this.touch.enabled = this.input.coarse;
 
+    // On genere la carte neuve d'abord, dans tous les cas. Elle sert de
+    // reference pour l'empreinte, et de nouvelle partie si la reprise echoue :
+    // une seule generation couvre les deux besoins.
+    const neuf = buildTown();
+    this.mapSignature = mapSignature(neuf);
+
     // Reprise de la partie precedente si elle existe. C'est ce qui rend la
     // sauvegarde utile sur telephone, ou il n'y a pas de touche a presser.
-    const restored = readFromStorage();
+    const reprise = readFromStorage(this.mapSignature);
+    const restored = reprise.kind === 'ok' ? reprise.state : null;
     if (restored) {
       this.world = restored.world;
       this.avatar = restored.avatar;
       this.clock = restored.clock;
       this.flags = restored.flags;
     } else {
-      this.world = buildTown();
+      this.world = neuf;
       this.avatar = populate(this.world).avatar;
     }
     this.ai = this.makeAi();
@@ -119,6 +129,11 @@ class Game {
     this.ui.addLog(
       restored ? 'Partie reprise.' : 'Vous arrivez au bourg de Valmoret.',
     );
+    if (reprise.kind === 'perimee') {
+      this.ui.addLog('La carte a change depuis votre derniere partie : elle repart a neuf.');
+    } else if (reprise.kind === 'illisible') {
+      this.ui.addLog('Sauvegarde illisible : la partie repart a neuf.');
+    }
 
     this.ui.addLog(
       this.input.coarse
@@ -145,7 +160,13 @@ class Game {
   // --- Sauvegarde ---------------------------------------------------------
 
   private get saveState(): GameState {
-    return { world: this.world, avatar: this.avatar, clock: this.clock, flags: this.flags };
+    return {
+      world: this.world,
+      avatar: this.avatar,
+      clock: this.clock,
+      flags: this.flags,
+      mapSignature: this.mapSignature,
+    };
   }
 
   /** `silent` : sauvegarde automatique, qui n'ecrit rien dans le journal. */
@@ -164,11 +185,18 @@ class Game {
    * qui n'existent plus.
    */
   private load(): void {
-    const restored = readFromStorage();
-    if (!restored) {
-      this.ui.addLog('Aucune sauvegarde.');
+    const reprise = readFromStorage(this.mapSignature);
+    if (reprise.kind !== 'ok') {
+      this.ui.addLog(
+        reprise.kind === 'perimee'
+          ? 'Cette sauvegarde vient d\'une carte differente.'
+          : reprise.kind === 'illisible'
+            ? 'Sauvegarde illisible.'
+            : 'Aucune sauvegarde.',
+      );
       return;
     }
+    const restored = reprise.state;
     this.world = restored.world;
     this.avatar = restored.avatar;
     this.clock = restored.clock;

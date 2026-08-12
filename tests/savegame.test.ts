@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { GameClock } from '../src/core/clock';
-import { deserialize, serialize, SaveError, SAVE_VERSION, type GameState } from '../src/core/savegame';
+import {
+  deserialize,
+  mapSignature,
+  serialize,
+  SaveError,
+  SAVE_VERSION,
+  type GameState,
+} from '../src/core/savegame';
 import { GameObject } from '../src/objects/gameobject';
 import { Actor } from '../src/objects/actor';
 import { buildTown, LANDMARKS } from '../src/data/town';
@@ -162,5 +169,60 @@ describe('sauvegarde', () => {
     expect(covered).toBe(tiles);
     expect(data.tframes).toHaveLength(tiles);
     expect(data.terrain.length).toBeLessThan(tiles / 10);
+  });
+});
+
+describe('empreinte de la carte', () => {
+  it('ne bouge pas d\'une generation a l\'autre', () => {
+    // Le generateur est deterministe : deux cartes neuves doivent donner la
+    // meme empreinte, sinon aucune sauvegarde ne serait jamais reprise.
+    expect(mapSignature(buildTown())).toBe(mapSignature(buildTown()));
+  });
+
+  it('change des que la carte change', () => {
+    const avant = buildTown();
+    const empreinte = mapSignature(avant);
+
+    const apres = buildTown();
+    // Un sentier de deux cases suffit : c'est l'ordre de grandeur de ce qu'on
+    // ajoute a la carte entre deux versions.
+    apres.setTerrain(70, 88, 'dirt', 0);
+    expect(mapSignature(apres)).not.toBe(empreinte);
+
+    // Un objet pose compte aussi.
+    const encore = buildTown();
+    encore.addObject(new GameObject({ shape: 'barrel', tx: 70, ty: 88 }));
+    expect(mapSignature(encore)).not.toBe(empreinte);
+  });
+
+  it('refuse de relire une partie issue d\'une autre carte', () => {
+    // Le pire mode de panne du jeu : sans ce refus, la partie reprend sur
+    // l'ancien monde et la moitie de ce que les PNJ racontent n'existe pas.
+    const world = buildTown();
+    const { avatar } = populate(world);
+    const etat: GameState = {
+      world,
+      avatar,
+      clock: new GameClock(8, 0),
+      flags: new Set(),
+      mapSignature: mapSignature(world),
+    };
+    const data = serialize(etat);
+
+    expect(() => deserialize(data, etat.mapSignature)).not.toThrow();
+    expect(() => deserialize(data, 'une-autre-carte')).toThrow(SaveError);
+    // Sans empreinte attendue, on relit sans broncher : c'est le cas des tests
+    // et des outils, qui ne connaissent pas la carte de reference.
+    expect(() => deserialize(data)).not.toThrow();
+  });
+
+  it('ne change pas quand le joueur deplace ses affaires', () => {
+    // L'empreinte porte sur la carte du generateur, pas sur la partie en
+    // cours : elle ne doit pas bouger au premier objet ramasse.
+    const world = buildTown();
+    const empreinte = mapSignature(world);
+    const { avatar } = populate(world);
+    avatar.tx += 3;
+    expect(mapSignature(world)).toBe(empreinte);
   });
 });

@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 125 tests
+npm test         # 129 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -27,6 +27,12 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 
 La partie est sauvegardée automatiquement toutes les 30 secondes et quand
 l'onglet passe en arrière-plan ; elle reprend seule au lancement.
+
+Une sauvegarde contient le terrain et tous les objets : elle fige donc la carte
+telle qu'elle était. Quand la carte change d'une version à l'autre, la partie
+précédente ne peut plus être reprise et le jeu repart à neuf en le disant —
+sans quoi on jouerait un ancien monde où la moitié de ce que les PNJ racontent
+n'existe pas.
 
 ---
 
@@ -221,7 +227,7 @@ src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues, les planches
 public/       les planches de dessins
-tests/        125 tests sur la logique pure
+tests/        129 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

@@ -29,6 +29,9 @@ ARCHITECTURE.md : le modèle d'objet a tenu sans rien démêler.
 - [x] Terrain compressé par plages
 - [x] Numéro de version, avec point d'accroche pour les migrations
 - [x] Sauvegarde automatique, reprise au lancement, `F5` / `F9` / `F8`
+- [x] Empreinte de la carte de départ, calculée sur le monde neuf : une partie
+      issue d'une carte différente est refusée au lieu d'être reprise dans un
+      monde périmé
 - [ ] Reste ouvert : un état explicite pour les scripts d'usecode non
       atomiques, le jour où il faudra sauvegarder au milieu d'une cinématique
 

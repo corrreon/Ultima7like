@@ -27,6 +27,47 @@ import { GameClock } from './clock';
 export const SAVE_VERSION = 1;
 const STORAGE_KEY = 'ultima7like.save';
 
+/**
+ * Empreinte de la carte de depart.
+ *
+ * Une sauvegarde contient le terrain et tous les objets : elle fige donc la
+ * carte telle qu'elle etait au moment de la premiere partie. Ajouter un
+ * sentier, un feu de camp ou un batiment ne change alors **rien** pour qui a
+ * deja joue — le monde repris est l'ancien, sans que rien ne le signale. C'est
+ * le pire mode de panne possible : le jeu a l'air de fonctionner, il raconte
+ * simplement une autre carte que celle qu'on croit.
+ *
+ * D'ou cette empreinte, calculee sur la carte neuve et rangee dans la
+ * sauvegarde. Elle se recalcule toute seule a chaque modification de la carte,
+ * ce qu'un numero de version tenu a la main ne fait pas — et c'est justement
+ * cet oubli qui a produit le probleme.
+ *
+ * On ne prend que ce qui vient du generateur de carte : terrain, regions, et
+ * objets a leur place d'origine. Ce que le joueur deplace ensuite n'en fait
+ * pas partie, sans quoi l'empreinte changerait au premier pas.
+ */
+export function mapSignature(world: World): string {
+  let h = 0x811c9dc5;
+  const melange = (texte: string): void => {
+    for (let i = 0; i < texte.length; i++) {
+      h ^= texte.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+  };
+
+  melange(`${world.widthTiles}x${world.heightTiles}`);
+  for (let ty = 0; ty < world.heightTiles; ty++) {
+    for (let tx = 0; tx < world.widthTiles; tx++) melange(world.terrainAt(tx, ty));
+  }
+  for (const region of world.regions) melange(region.name);
+  const objets = [...world.allObjects()]
+    .map((o) => `${o.shapeId}@${o.tx},${o.ty},${o.tz}`)
+    .sort();
+  for (const objet of objets) melange(objet);
+
+  return (h >>> 0).toString(36);
+}
+
 /** Objet serialise. Les clefs sont courtes : il y en a des milliers. */
 export interface SavedObject {
   i: number;
@@ -62,6 +103,8 @@ export type TerrainRun = [string, number];
 
 export interface SaveData {
   v: number;
+  /** Empreinte de la carte de depart. Voir `mapSignature`. */
+  map?: string;
   /** Date de la sauvegarde, en ms epoch. Sert a l'affichage seulement. */
   at: number;
   minutes: number;
@@ -150,6 +193,14 @@ export interface GameState {
   avatar: Actor;
   clock: GameClock;
   flags: Set<string>;
+  /**
+   * Empreinte de la carte **neuve** dont cette partie est issue.
+   *
+   * Elle se calcule sur une carte fraichement generee, jamais sur le monde en
+   * cours : le joueur deplace des objets, et l'empreinte doit rester celle du
+   * generateur.
+   */
+  mapSignature?: string;
 }
 
 export function serialize(state: GameState): SaveData {
@@ -157,6 +208,7 @@ export function serialize(state: GameState): SaveData {
   const terrain = saveTerrain(world);
   return {
     v: SAVE_VERSION,
+    map: state.mapSignature ?? '',
     at: Date.now(),
     minutes: clock.totalMinutes,
     w: world.widthTiles,
@@ -241,7 +293,21 @@ function loadTerrain(world: World, runs: TerrainRun[], frames: string): void {
 
 export class SaveError extends Error {}
 
-export function deserialize(data: SaveData): GameState {
+/**
+ * Relit une sauvegarde.
+ *
+ * `attendue` est l'empreinte de la carte neuve. Fournie, elle fait refuser une
+ * sauvegarde issue d'une carte differente — mieux vaut repartir de zero en le
+ * disant que jouer une carte fantome sur laquelle la moitie de ce que les PNJ
+ * racontent n'existe pas.
+ */
+export function deserialize(data: SaveData, attendue?: string): GameState {
+  if (attendue !== undefined && (data.map ?? '') !== attendue) {
+    throw new SaveError(
+      'La carte a change depuis cette sauvegarde : le monde enregistre est l\'ancien.',
+    );
+  }
+
   if (data.v !== SAVE_VERSION) {
     // Point d'accroche des migrations : tant qu'il n'y a qu'une version, on
     // refuse proprement plutot que de charger un etat incoherent.
@@ -284,20 +350,43 @@ export function writeToStorage(state: GameState): boolean {
   }
 }
 
-/** Lit la sauvegarde, ou null s'il n'y en a pas d'exploitable. */
-export function readFromStorage(): GameState | null {
+/**
+ * Resultat d'une tentative de reprise.
+ *
+ * Distinguer les cas plutot que de rendre `null` partout : « il n'y avait pas
+ * de partie » et « il y en avait une, mais elle est perimee » demandent des
+ * mots differents au joueur, et sans cette distinction l'appelant en est
+ * reduit a relire la sauvegarde une seconde fois pour deviner laquelle.
+ */
+export type LoadOutcome =
+  | { kind: 'ok'; state: GameState }
+  | { kind: 'aucune' }
+  | { kind: 'perimee' }
+  | { kind: 'illisible' };
+
+/** Lit la sauvegarde. `attendue` : empreinte de la carte neuve. */
+export function readFromStorage(attendue?: string): LoadOutcome {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(STORAGE_KEY);
   } catch {
-    return null;
+    return { kind: 'aucune' };
   }
-  if (!raw) return null;
+  if (!raw) return { kind: 'aucune' };
+
+  let data: SaveData;
+  try {
+    data = JSON.parse(raw) as SaveData;
+  } catch {
+    return { kind: 'illisible' };
+  }
+
+  if (attendue !== undefined && (data.map ?? '') !== attendue) return { kind: 'perimee' };
 
   try {
-    return deserialize(JSON.parse(raw) as SaveData);
+    return { kind: 'ok', state: deserialize(data, attendue) };
   } catch {
-    return null;
+    return { kind: 'illisible' };
   }
 }
 
