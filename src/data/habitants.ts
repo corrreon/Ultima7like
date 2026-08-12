@@ -246,6 +246,14 @@ function rng_bonjour(nom: string): string {
 export interface LieuxDuBourg {
   place: { tx: number; ty: number };
   taverne: { tx: number; ty: number };
+  /**
+   * Les lits du quartier d'habitation, dans l'ordre.
+   *
+   * Ils viennent de la carte et non d'une liste tenue en double : deplacer une
+   * maison ne demande rien d'autre. S'il en manque, les derniers habitants
+   * dorment dehors — ce qui se verra, et c'est preferable a un plantage.
+   */
+  lits: Array<{ tx: number; ty: number }>;
 }
 
 /**
@@ -275,10 +283,12 @@ export function habitantsQuelconques(
     const rumeur = RUMEURS[rng.int(0, RUMEURS.length - 1)]!;
     conversation(id, nom, metier, rumeur);
 
-    // Le logis : autour de la place, faute de maisons pour tout le monde. Ils
-    // rentrent donc « chez eux » sans avoir de lit — la limite est assumee, et
-    // elle disparaitra le jour ou la ville aura ses quartiers d'habitation.
-    const logis = {
+    // Chacun son lit, pris dans le quartier d'habitation. C'est ce qui fait la
+    // difference entre des figurants qui s'eteignent le soir et des gens qui
+    // rentrent chez eux : a vingt-deux heures, la rue se vide et les fenetres
+    // s'allument dans les maisons, pas au milieu d'un champ.
+    const lit = lieux.lits[i % Math.max(1, lieux.lits.length)];
+    const logis = lit ?? {
       tx: lieux.place.tx + rng.int(-14, 14),
       ty: lieux.place.ty + rng.int(-10, 10),
     };

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../src/world/world';
 import { GameObject } from '../src/objects/gameobject';
 import { CHUNK_SIZE } from '../src/core/constants';
-import { buildTown, LANDMARKS, WORLD_SIZE } from '../src/data/town';
+import { buildTown, LANDMARKS, LOGIS_PREFIX, WORLD_SIZE } from '../src/data/town';
 
 describe('monde et chunks', () => {
   it('range les objets dans le chunk correspondant', () => {
@@ -114,10 +114,20 @@ describe('monde et chunks', () => {
 describe('carte de Valmoret', () => {
   const world = buildTown();
 
-  it('genere les cinq batiments', () => {
-    expect(world.regions).toHaveLength(5);
-    expect(world.regions.map((r) => r.name)).toContain('Taverne du Chat Endormi');
-    expect(world.regions.map((r) => r.name)).toContain('Halle au grain');
+  it('genere les lieux publics et le quartier d\'habitation', () => {
+    const noms = world.regions.map((r) => r.name);
+    expect(noms).toContain('Taverne du Chat Endormi');
+    expect(noms).toContain('Halle au grain');
+
+    // Huit logis, deux lits chacun : de quoi coucher les seize habitants
+    // quelconques. Un habitant sans lit dormirait dans un champ.
+    const logis = world.regions.filter((r) => r.name.startsWith(LOGIS_PREFIX));
+    expect(logis).toHaveLength(8);
+
+    const lits = [...world.allObjects()].filter(
+      (o) => o.shapeId === 'bed' && world.regionAt(o.tx, o.ty)?.name.startsWith(LOGIS_PREFIX),
+    );
+    expect(lits).toHaveLength(16);
   });
 
   it('donne au batiment en L une forme reelle, pas sa boite englobante', () => {

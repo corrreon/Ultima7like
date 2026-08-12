@@ -110,6 +110,67 @@ const BLUEPRINTS: Blueprint[] = [
   },
 ];
 
+/**
+ * Prefixe des regions du quartier d'habitation.
+ *
+ * Les habitants quelconques y trouvent leur lit. On les reconnait par leur nom
+ * plutot que par une liste de coordonnees tenue en double : la carte reste la
+ * seule source de verite, et deplacer une maison ne demande rien d'autre.
+ */
+export const LOGIS_PREFIX = 'Logis';
+
+/**
+ * Le quartier d'habitation.
+ *
+ * Les quatre premiers batiments etaient des lieux de travail ; personne
+ * n'habitait nulle part. Vingt-trois habitants qui rentrent le soir dans un
+ * champ, ce n'est pas un bourg, c'est un campement.
+ *
+ * Huit maisons identiques, deux rangees de part et d'autre d'une rue. Elles se
+ * ressemblent, et c'est voulu : dans un bourg, les maisons ordinaires se
+ * ressemblent. Ce qui les distingue est ce que le mobilier procedural y pose,
+ * et surtout qui y dort.
+ *
+ * Deux lits chacune, soit seize places — le compte exact des habitants
+ * quelconques.
+ */
+function quartierResidentiel(): Blueprint[] {
+  // Porte au sud pour la rangee du nord, au nord pour celle du sud : toutes
+  // donnent sur la rue, comme des maisons qui bordent une voie.
+  const versLeSud = [
+    '#######',
+    '#=====#',
+    '#=b=b=#',
+    '#=====#',
+    '#=t=c=#',
+    '#=o===#',
+    '###D###',
+  ];
+  const versLeNord = [
+    '###D###',
+    '#=====#',
+    '#=b=b=#',
+    '#=====#',
+    '#=t=c=#',
+    '#=o===#',
+    '#######',
+  ];
+
+  const maisons: Blueprint[] = [];
+  const colonnes = [10, 18, 26, 34];
+  for (const [rangee, oy] of [[0, 6], [1, 16]] as const) {
+    for (const [index, ox] of colonnes.entries()) {
+      maisons.push({
+        name: `${LOGIS_PREFIX} ${rangee * colonnes.length + index + 1}`,
+        ox,
+        oy,
+        rows: rangee === 0 ? versLeSud : versLeNord,
+      });
+    }
+  }
+  return maisons;
+}
+
 /** Lieux nommes, references par les emplois du temps des PNJ. */
 export const LANDMARKS = {
   tavernBedA: { tx: 28, ty: 26 },
@@ -558,7 +619,12 @@ export function buildTown(seed = 1337): World {
   // garder la derniere approche a faire.
   stampTrail(world, [[44, 60], [38, 66], [31, 71], [26, 74]]);
 
-  for (const plan of BLUEPRINTS) stampBuilding(world, plan);
+  // La rue du quartier d'habitation, entre les deux rangees de maisons. Elle
+  // rejoint la route verticale a l'est : un quartier qu'aucune voie ne relie au
+  // reste se lit comme un decor pose a cote du bourg.
+  stampRoad(world, 10, 14, 45, 15);
+
+  for (const plan of [...BLUEPRINTS, ...quartierResidentiel()]) stampBuilding(world, plan);
 
   // Vegetation : on evite les routes, les batiments et leurs abords.
   const isFree = (tx: number, ty: number): boolean => {

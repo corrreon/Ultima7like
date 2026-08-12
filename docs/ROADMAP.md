@@ -153,6 +153,35 @@ marcher l'Avatar. Un panneau modal doit **consommer** ce qu'il reçoit.
       un endroit où il n'y avait rien
 - [x] Un test refuse tout conteneur vide à moins de six tuiles du feu
 
+## Fait — de quoi peupler une ville (v1.0)
+
+Trois travaux qui n'en font qu'un : le pathfinding empêchait de peupler, les
+habitants génériques donnent la profondeur, le quartier d'habitation leur donne
+un chez-soi.
+
+- [x] **Pathfinding**, mesuré sur le pire tick — celui où tous les habitants se
+      remettent en route en même temps :
+
+      |            | 8 hab. | 40 hab. | 120 hab. |
+      |------------|--------|---------|----------|
+      | avant      | 125 ms | 752 ms  | 2125 ms  |
+      | après      |  20 ms |  21 ms  |   21 ms  |
+
+      Tas binaire (20 % seulement — mon diagnostic était faux), memo par
+      recherche sur les cases infranchissables (le gros du gain), et un budget
+      de deux chemins par image qui rend la dépense **indépendante du nombre
+      d'habitants**. C'est cette dernière propriété qui débloque tout le reste.
+- [x] **Habitants quelconques** : dix métiers, un fonds de rumeurs conditionné
+      par les drapeaux de quête. La profondeur vient de ce que les gens
+      *savent*, pas du nombre de répliques
+- [x] **Quartier d'habitation** : huit maisons, seize lits, une rue. Le nombre
+      d'habitants n'est plus une constante mais une conséquence de la carte —
+      loger plus de monde demande de bâtir
+- [x] **Se soigner** : manger rend peu et tout de suite, dormir rend tout et
+      consomme la nuit. Sans quoi le combat n'avait pas de seconde moitié
+- [ ] Reste ouvert : les habitants n'ont pas de portrait propre, et le quartier
+      est fait de huit maisons identiques
+
 ## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
 - [ ] **Magie** : réactifs, grimoire, sorts comme usecode

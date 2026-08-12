@@ -3,10 +3,12 @@ import { Rng } from '../src/core/rng';
 import { habitantsQuelconques } from '../src/data/habitants';
 import { getConversation } from '../src/script/conversation';
 import { currentEntry } from '../src/sim/schedule';
-import { buildTown, LANDMARKS } from '../src/data/town';
+import { buildTown, LANDMARKS, LOGIS_PREFIX } from '../src/data/town';
 import { populate } from '../src/data/npcs';
 
-const lieux = { place: LANDMARKS.square, taverne: LANDMARKS.tavernTableB };
+// Seize lits factices : le quartier reel est verifie par les tests de carte.
+const lits = Array.from({ length: 16 }, (_, i) => ({ tx: 12 + (i % 4) * 8, ty: 8 + Math.floor(i / 4) * 5 }));
+const lieux = { place: LANDMARKS.square, taverne: LANDMARKS.tavernTableB, lits };
 const foule = (n: number, graine = 1) => habitantsQuelconques(n, lieux, new Rng(graine));
 
 describe('habitants quelconques', () => {
@@ -52,6 +54,30 @@ describe('habitants quelconques', () => {
       return conv.topics.find((t) => t.id === 'rumeur')!.text;
     });
     expect(new Set(rumeurs).size).toBeGreaterThanOrEqual(4);
+  });
+
+  it('couche chacun dans un lit du quartier, et jamais a deux dans le meme', () => {
+    // Le detail qui separe des figurants qui s'eteignent le soir de gens qui
+    // rentrent chez eux : a vingt-deux heures la rue se vide et les maisons se
+    // remplissent.
+    const world = buildTown();
+    populate(world);
+    const quelconques = world.actors.filter((a) => a.conversationId?.startsWith('habitant_'));
+    expect(quelconques.length).toBe(16);
+
+    const occupes = new Set<string>();
+    for (const habitant of quelconques) {
+      const nuit = currentEntry(habitant.schedule, 23)!;
+      expect(nuit.activity, `${habitant.displayName} ne dort pas a 23 h`).toBe('sleep');
+
+      const lit = world.objectsAt(nuit.tx, nuit.ty).find((o) => o.shapeId === 'bed');
+      expect(lit, `${habitant.displayName} dort en ${nuit.tx},${nuit.ty} sans lit`).toBeDefined();
+      expect(world.regionAt(nuit.tx, nuit.ty)?.name.startsWith(LOGIS_PREFIX)).toBe(true);
+
+      const clef = `${nuit.tx},${nuit.ty}`;
+      expect(occupes.has(clef), `deux habitants dans le lit ${clef}`).toBe(false);
+      occupes.add(clef);
+    }
   });
 
   it('arrive dans le monde sur des cases franchissables', () => {

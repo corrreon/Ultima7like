@@ -2,7 +2,7 @@ import { Actor } from '../objects/actor';
 import { GameObject } from '../objects/gameobject';
 import type { World } from '../world/world';
 import { craftsmanSchedule } from '../sim/schedule';
-import { LANDMARKS } from './town';
+import { LANDMARKS, LOGIS_PREFIX } from './town';
 import { ETAL } from '../script/commerce';
 import { Rng } from '../core/rng';
 import { habitantsQuelconques } from './habitants';
@@ -11,10 +11,10 @@ import './dialogue';
 /**
  * Habitants quelconques, en plus des quatre personnages nommes.
  *
- * Seize : assez pour que la place ne soit jamais vide et qu'on croise du monde
- * sur la route, pas assez pour que le bourg ait l'air d'une ville — ce qu'il
- * n'est pas encore, faute de maisons pour les loger. Le nombre est le seul
- * reglage a toucher le jour ou la carte grandira.
+ * Seize, parce que le quartier d'habitation compte huit maisons a deux lits :
+ * le nombre n'est pas choisi, il est **impose par la carte**. Loger davantage
+ * de monde demande de batir, ce qui est la bonne contrainte — une ville se
+ * peuple en construisant, pas en changeant une constante.
  */
 const HABITANTS_QUELCONQUES = 16;
 
@@ -194,6 +194,7 @@ export function populate(world: World): Population {
   for (const habitant of habitantsQuelconques(HABITANTS_QUELCONQUES, {
     place: L.square,
     taverne: L.tavernTableB,
+    lits: litsDuQuartier(world),
   }, rng)) {
     npcs.push(habitant);
   }
@@ -211,6 +212,22 @@ export function populate(world: World): Population {
   }
 
   return { avatar, npcs };
+}
+
+/**
+ * Les lits du quartier d'habitation, dans un ordre stable.
+ *
+ * Lus depuis la carte plutot que recopies : ajouter une maison suffit a loger
+ * deux habitants de plus, sans toucher a ce fichier. Le tri rend l'attribution
+ * reproductible, ce dont l'empreinte de carte a besoin — `allObjects` parcourt
+ * des chunks dont l'ordre n'est pas garanti.
+ */
+function litsDuQuartier(world: World): Array<{ tx: number; ty: number }> {
+  return [...world.allObjects()]
+    .filter((o) => o.shapeId === 'bed'
+      && (world.regionAt(o.tx, o.ty)?.name.startsWith(LOGIS_PREFIX) ?? false))
+    .map((o) => ({ tx: o.tx, ty: o.ty }))
+    .sort((a, b) => a.ty - b.ty || a.tx - b.tx);
 }
 
 /** Premiere case franchissable en spirale autour de celle-ci. */
