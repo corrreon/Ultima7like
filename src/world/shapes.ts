@@ -78,6 +78,21 @@ export interface ShapeDef {
    * rien ne bouge a l'air d'une maquette.
    */
   anim?: { whenFrame: number; frames: number[]; fps: number };
+  /**
+   * L'enveloppe des batiments : le generateur la reproduit a l'identique, donc
+   * la sauvegarde ne la stocke pas.
+   *
+   * Le contrat est strict, et c'est ce qui rend l'economie sure : un objet
+   * `rebuilt` n'a aucun usecode, ne se ramasse pas, ne contient rien, ne bouge
+   * jamais et ne change pas d'etat. Rien de ce que fait le joueur ne peut donc
+   * le distinguer de celui que le generateur reposera. L'empreinte de carte
+   * garantit par ailleurs qu'une sauvegarde reprise vient bien de cette
+   * carte-la.
+   *
+   * L'economie n'est pas marginale : murs et toits representent 57 % des objets
+   * du bourg.
+   */
+  rebuilt?: boolean;
 }
 
 const defs = new Map<string, ShapeDef>();
@@ -103,10 +118,10 @@ def({ id: 'woodfloor', name: 'Plancher', kind: 'terrain', footprint: [1, 1], hei
 // consequence tant que rien ne consultait `frames`, mais une planche qui aurait
 // voulu remplacer le mur n'en aurait repeint qu'un tiers, et les deux autres
 // variantes seraient restees procedurales au milieu de la facade.
-def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, frames: 3, solid: true });
+def({ id: 'wall', name: 'Mur', kind: 'object', footprint: [1, 1], height: 5, frames: 3, solid: true, rebuilt: true });
 // Toiture : 12 frames = 4 positions en rang x 3 en colonne. Voir art.ts.
-def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 12, roof: true });
-def({ id: 'chimney', name: 'Cheminee', kind: 'object', footprint: [1, 1], height: 3, frames: 1, roof: true });
+def({ id: 'roof', name: 'Toit', kind: 'object', footprint: [1, 1], height: 1, frames: 12, roof: true, rebuilt: true });
+def({ id: 'chimney', name: 'Cheminee', kind: 'object', footprint: [1, 1], height: 3, frames: 1, roof: true, rebuilt: true });
 def({ id: 'door', name: 'Porte', kind: 'object', footprint: [1, 1], height: 5, frames: 2, solid: true, door: true });
 def({ id: 'tree', name: 'Arbre', kind: 'object', footprint: [1, 1], height: 6, frames: 6, solid: true });
 def({ id: 'bush', name: 'Buisson', kind: 'object', footprint: [1, 1], height: 1, frames: 2 });

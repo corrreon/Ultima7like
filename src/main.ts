@@ -28,7 +28,7 @@ import { accorderCombat, compagnons, congedier } from './sim/party';
 import { HEURE_REVEIL, reposer } from './sim/repos';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { aUnUsage, use, type UsecodeContext } from './script/usecode';
-import { LANDMARKS, buildTown } from './data/town';
+import { LANDMARKS, buildTown, reposerEnveloppe } from './data/town';
 import { populate } from './data/npcs';
 import type { World } from './world/world';
 
@@ -110,6 +110,9 @@ class Game {
     const restored = reprise.kind === 'ok' ? reprise.state : null;
     if (restored) {
       this.world = restored.world;
+      // L'enveloppe des batiments n'est pas dans la sauvegarde : le generateur
+      // la repose. Voir `ShapeDef.rebuilt`.
+      reposerEnveloppe(this.world);
       this.avatar = restored.avatar;
       this.clock = restored.clock;
       this.flags = restored.flags;
@@ -205,6 +208,7 @@ class Game {
     }
     const restored = reprise.state;
     this.world = restored.world;
+    reposerEnveloppe(this.world);
     this.avatar = restored.avatar;
     this.clock = restored.clock;
     this.flags = restored.flags;

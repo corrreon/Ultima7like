@@ -1,6 +1,7 @@
 import { Rng } from '../core/rng';
 import { GameObject } from '../objects/gameobject';
 import { World, type BuildingRegion } from '../world/world';
+import { getShape } from '../world/shapes';
 import { DEHORS, LEGENDE, tousLesPlans, validerPlans, type Plan } from './plans';
 
 export { LOGIS_PREFIX } from './plans';
@@ -121,7 +122,23 @@ function onTable(world: World, shape: string, tx: number, ty: number): GameObjec
   return obj;
 }
 
-function stampBuilding(world: World, plan: Plan): void {
+/**
+ * Repose l'enveloppe des batiments — murs, toits, cheminees — sur un monde
+ * charge depuis une sauvegarde.
+ *
+ * La sauvegarde ne stocke plus ces objets : ils representaient 57 % du total et
+ * le generateur les reproduit a l'identique. Le terrain et les regions, eux,
+ * sont bien sauvegardes ; on ne repose donc que les objets.
+ */
+export function reposerEnveloppe(world: World): void {
+  for (const plan of tousLesPlans()) stampBuilding(world, plan, true);
+}
+
+/**
+ * @param enveloppeSeule Ne pose que ce que la sauvegarde omet, sans toucher au
+ * terrain ni aux regions — voir `reposerEnveloppe`.
+ */
+function stampBuilding(world: World, plan: Plan, enveloppeSeule = false): void {
   const height = plan.rows.length;
   const width = Math.max(...plan.rows.map((r) => r.length));
   const charAt = (row: number, col: number): string => plan.rows[row]?.[col] ?? ' ';
@@ -139,7 +156,7 @@ function stampBuilding(world: World, plan: Plan): void {
     }
   }
 
-  world.regions.push({
+  if (!enveloppeSeule) world.regions.push({
     name: plan.name,
     x0: plan.ox,
     y0: plan.oy,
@@ -183,12 +200,14 @@ function stampBuilding(world: World, plan: Plan): void {
       const ty = plan.oy + row;
 
       // Sol : pierre sous les murs, plancher a l'interieur.
-      world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx * 3 + ty * 5) % 4);
+      if (!enveloppeSeule) {
+        world.setTerrain(tx, ty, char === '#' ? 'stone' : 'woodfloor', (tx * 3 + ty * 5) % 4);
+      }
 
       // La legende est une donnee : ajouter un meuble ne demande pas de
       // toucher au poseur de batiments.
       const symbole = LEGENDE[char];
-      if (symbole) {
+      if (symbole && (!enveloppeSeule || getShape(symbole.shape).rebuilt === true)) {
         place(world, symbole.shape, tx, ty, { frame: symbole.frame?.(tx, ty) ?? 0 });
       }
 

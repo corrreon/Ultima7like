@@ -9,8 +9,9 @@ import {
   type GameState,
 } from '../src/core/savegame';
 import { GameObject } from '../src/objects/gameobject';
+import type { World } from '../src/world/world';
 import { Actor } from '../src/objects/actor';
-import { buildTown, LANDMARKS } from '../src/data/town';
+import { buildTown, LANDMARKS, reposerEnveloppe } from '../src/data/town';
 import { populate } from '../src/data/npcs';
 
 /** Une partie en cours, avec quelques modifications par rapport au depart. */
@@ -40,7 +41,11 @@ function playedGame(): GameState {
 function roundTrip(state: GameState): GameState {
   // On passe par JSON : c'est ce que fait reellement le stockage, et cela
   // garantit qu'aucune reference vivante ne survit au transit.
-  return deserialize(JSON.parse(JSON.stringify(serialize(state))));
+  const relu = deserialize(JSON.parse(JSON.stringify(serialize(state))));
+  // Et on repose l'enveloppe, comme le fait le jeu au chargement : sans cela
+  // ce helper testerait un monde a moitie charge, que personne ne rencontre.
+  reposerEnveloppe(relu.world);
+  return relu;
 }
 
 describe('sauvegarde', () => {
@@ -169,6 +174,49 @@ describe('sauvegarde', () => {
     expect(covered).toBe(tiles);
     expect(data.tframes).toHaveLength(tiles);
     expect(data.terrain.length).toBeLessThan(tiles / 10);
+  });
+});
+
+describe('enveloppe des batiments', () => {
+  it('n\'est pas stockee, mais se repose a l\'identique', () => {
+    // 57 % des objets du bourg sont des murs et des toits que le generateur
+    // reproduit exactement. Les stocker doublait le poids de la sauvegarde.
+    const neuf = buildTown();
+    const { avatar } = populate(neuf);
+    const enveloppe = (w: World) =>
+      [...w.allObjects()]
+        .filter((o) => o.shape.rebuilt)
+        .map((o) => `${o.shapeId}@${o.tx},${o.ty},${o.tz}#${o.frame}`)
+        .sort();
+
+    const attendue = enveloppe(neuf);
+    expect(attendue.length).toBeGreaterThan(1000);
+
+    const data = serialize({
+      world: neuf, avatar, clock: new GameClock(9, 0), flags: new Set(), mapSignature: 'x',
+    });
+    expect(data.objects.some((o) => o.s === 'wall' || o.s === 'roof')).toBe(false);
+
+    const relu = deserialize(data);
+    expect(enveloppe(relu.world)).toHaveLength(0);
+    reposerEnveloppe(relu.world);
+    expect(enveloppe(relu.world)).toEqual(attendue);
+  });
+
+  it('garde les murs infranchissables apres un aller-retour', () => {
+    // Le vrai risque : une enveloppe non reposee laisserait traverser les murs
+    // sans que rien ne le signale, la region et le terrain etant intacts.
+    const neuf = buildTown();
+    const { avatar } = populate(neuf);
+    const taverne = neuf.regions.find((r) => r.name.startsWith('Taverne'))!;
+    const mur = { tx: taverne.x0, ty: taverne.y0 + 2 };
+    expect(neuf.isBlocked(mur.tx, mur.ty)).toBe(true);
+
+    const relu = deserialize(serialize({
+      world: neuf, avatar, clock: new GameClock(9, 0), flags: new Set(), mapSignature: 'x',
+    }));
+    reposerEnveloppe(relu.world);
+    expect(relu.world.isBlocked(mur.tx, mur.ty)).toBe(true);
   });
 });
 

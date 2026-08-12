@@ -151,6 +151,17 @@ export interface SaveData {
 
 // --- Ecriture -------------------------------------------------------------
 
+/**
+ * Cet objet sera-t-il repose par le generateur de carte ?
+ *
+ * Voir `ShapeDef.rebuilt` pour le contrat. On ne teste que les objets poses au
+ * sol : un mur ne peut pas se retrouver dans un sac, mais la regle doit rester
+ * vraie meme si une shape `rebuilt` venait a devenir transportable.
+ */
+export function estRebati(obj: GameObject): boolean {
+  return obj.parent === null && obj.shape.rebuilt === true;
+}
+
 function saveObject(obj: GameObject): SavedObject {
   const out: SavedObject = { i: obj.id, s: obj.shapeId };
   if (obj.frame !== 0) out.f = obj.frame;
@@ -243,7 +254,10 @@ export function serialize(state: GameState): SaveData {
     terrain: terrain.runs,
     tframes: terrain.frames,
     regions: world.regions.map((r) => ({ ...r })),
-    objects: [...world.allObjects()].map(saveObject),
+    // L'enveloppe des batiments n'est pas stockee : le generateur la repose a
+    // l'identique, et l'empreinte de carte garantit qu'il s'agit bien de la
+    // meme. Elle representait 57 % des objets du bourg.
+    objects: [...world.allObjects()].filter((o) => !estRebati(o)).map(saveObject),
     actors: world.actors.map(saveActor),
     avatar: world.actors.indexOf(avatar),
     flags: [...flags],
