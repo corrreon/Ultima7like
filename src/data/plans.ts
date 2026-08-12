@@ -176,50 +176,108 @@ export const BATIMENTS_PUBLICS: Plan[] = [
  * part. Seize habitants qui rentrent le soir dans un champ, ce n'est pas un
  * bourg, c'est un campement.
  *
- * Huit maisons identiques, deux rangees de part et d'autre d'une rue. Elles se
- * ressemblent, et c'est voulu : dans un bourg, les maisons ordinaires se
- * ressemblent. Ce qui les distingue est ce que le mobilier procedural y pose,
- * et surtout qui y dort.
+ * Huit maisons, deux rangees de part et d'autre d'une rue, declinees sur quatre
+ * plans (voir `maison`). Elles se ressemblent sans etre identiques : dans un
+ * bourg les maisons ordinaires se ressemblent, mais huit copies exactes se
+ * reperent au premier coup d'oeil.
  *
  * Deux lits chacune, soit seize places — le compte exact des habitants
  * quelconques. Loger davantage de monde demande donc de batir, ce qui est la
  * bonne contrainte : une ville se peuple en construisant.
  */
 export function quartierResidentiel(): Plan[] {
-  // Porte au sud pour la rangee du nord, au nord pour celle du sud : toutes
-  // donnent sur la rue, comme des maisons qui bordent une voie.
-  const versLeSud = [
-    '#######',
-    '#=====#',
-    '#=b=b=#',
-    '#=====#',
-    '#=t=c=#',
-    '#=o===#',
-    '###D###',
-  ];
-  const versLeNord = [
-    '###D###',
-    '#=====#',
-    '#=b=b=#',
-    '#=====#',
-    '#=t=c=#',
-    '#=o===#',
-    '#######',
-  ];
-
   const maisons: Plan[] = [];
   const colonnes = [10, 18, 26, 34];
   for (const [rangee, oy] of [[0, 6], [1, 16]] as const) {
     for (const [index, ox] of colonnes.entries()) {
+      const numero = rangee * colonnes.length + index;
       maisons.push({
-        name: `${LOGIS_PREFIX} ${rangee * colonnes.length + index + 1}`,
+        name: `${LOGIS_PREFIX} ${numero + 1}`,
         ox,
         oy,
-        rows: rangee === 0 ? versLeSud : versLeNord,
+        // La rangee du nord ouvre au sud, celle du sud ouvre au nord : toutes
+        // donnent sur la rue, comme des maisons qui bordent une voie.
+        rows: maison(numero, rangee === 0 ? 'sud' : 'nord'),
       });
     }
   }
   return maisons;
+}
+
+/**
+ * Un logis, decline en quatre plans.
+ *
+ * Huit maisons identiques se voient immediatement : l'oeil repere la repetition
+ * bien avant de lire le detail. Quatre plans suffisent a la casser, parce que
+ * ce n'est pas la variete qu'on remarque mais la **regularite**.
+ *
+ * Ce qui varie est ce qui se voit de loin — la largeur, la profondeur, la
+ * position de la porte dans la facade, le decrochement de l'appentis — et non
+ * la disposition des meubles, qu'on ne decouvre qu'une fois entre. Deux lits
+ * dans chacune : le quartier doit loger seize personnes quoi qu'il arrive.
+ *
+ * Les plans sont ecrits porte au sud puis retournes pour la rangee d'en face,
+ * ce qui evite d'entretenir deux versions de chacun.
+ */
+function maison(numero: number, porte: 'sud' | 'nord'): string[] {
+  const plans: string[][] = [
+    // 1. La plus simple, sept sur sept.
+    [
+      '#######',
+      '#=====#',
+      '#=b=b=#',
+      '#=====#',
+      '#=t=c=#',
+      '#=o===#',
+      '###D###',
+    ],
+    // 2. Plus profonde, porte decentree, un coffre au fond.
+    [
+      '#######',
+      '#=====#',
+      '#=b=b=#',
+      '#=C=t=#',
+      '#===c=#',
+      '#=k===#',
+      '#=====#',
+      '#=D####',
+    ],
+    // 3. Plus large, deux pieces suggerees par le mobilier.
+    [
+      '########',
+      '#======#',
+      '#=b==b=#',
+      '#=t==p=#',
+      '#=c====#',
+      '#===B==#',
+      '####D###',
+    ],
+    // 4. Avec un appentis : le decrochement suffit a rompre l'alignement des
+    //    facades, ce qu'aucun changement de mobilier ne ferait.
+    [
+      '#####  ',
+      '#===#  ',
+      '#=b=###',
+      '#=====#',
+      '#=b=c=#',
+      '#=t=k=#',
+      '##D####',
+    ],
+  ];
+
+  const plan = plans[numero % plans.length]!;
+  return porte === 'sud' ? plan : retourner(plan);
+}
+
+/**
+ * Retourne un plan du nord au sud.
+ *
+ * Seules les lignes s'inversent, pas les colonnes : un miroir horizontal
+ * changerait aussi la main du plan, et l'appentis passerait d'un cote a
+ * l'autre — ce qui n'est pas demande ici.
+ */
+function retourner(rows: string[]): string[] {
+  return [...rows].reverse();
 }
 
 /** Tous les plans de la carte, dans l'ordre de pose. */
