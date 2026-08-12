@@ -94,7 +94,12 @@ class Game {
     // On genere la carte neuve d'abord, dans tous les cas. Elle sert de
     // reference pour l'empreinte, et de nouvelle partie si la reprise echoue :
     // une seule generation couvre les deux besoins.
+    //
+    // Les habitants sont poses **avant** le calcul de l'empreinte : ce qu'ils
+    // portent fait partie de la carte, et une empreinte prise sur un monde
+    // desert ne verrait jamais changer l'inventaire d'un brigand.
     const neuf = buildTown();
+    const peuplement = populate(neuf);
     this.mapSignature = mapSignature(neuf);
 
     // Reprise de la partie precedente si elle existe. C'est ce qui rend la
@@ -108,7 +113,7 @@ class Game {
       this.flags = restored.flags;
     } else {
       this.world = neuf;
-      this.avatar = populate(this.world).avatar;
+      this.avatar = peuplement.avatar;
     }
     this.ai = this.makeAi();
 

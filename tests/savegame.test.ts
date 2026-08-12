@@ -195,6 +195,43 @@ describe('empreinte de la carte', () => {
     expect(mapSignature(encore)).not.toBe(empreinte);
   });
 
+  it('change quand le contenu d\'un conteneur change', () => {
+    // Le cas qui a echappe au premier jet, et qui s'est vu en jeu : remplir la
+    // caisse du campement laissait l'empreinte inchangee, donc une partie en
+    // cours continuait de montrer une caisse vide. Un butin fait partie de la
+    // carte au meme titre qu'un mur.
+    const empreinte = mapSignature(buildTown());
+
+    const vide = buildTown();
+    const caisse = [...vide.allObjects()].find(
+      (o) => o.shapeId === 'crate' && o.contents.length > 0,
+    )!;
+    caisse.contents.length = 0;
+    expect(mapSignature(vide)).not.toBe(empreinte);
+
+    // Y compris au fond d'un conteneur imbrique : la bourse est dans la caisse.
+    const allege = buildTown();
+    const bourse = [...allege.allObjects()]
+      .find((o) => o.shapeId === 'crate' && o.contents.length > 0)!
+      .contents.find((o) => o.isContainer)!;
+    bourse.contents.length = 0;
+    expect(mapSignature(allege)).not.toBe(empreinte);
+  });
+
+  it('change quand un habitant porte autre chose', () => {
+    // Les acteurs sont poses apres la carte, mais ce qu'ils portent en fait
+    // partie : la prime d'un brigand n'est pas differente d'un coffre.
+    const monde = buildTown();
+    populate(monde);
+    const empreinte = mapSignature(monde);
+
+    const autre = buildTown();
+    populate(autre);
+    const brigand = autre.actors.find((a) => a.shapeId === 'brigand')!;
+    brigand.contents.length = 0;
+    expect(mapSignature(autre)).not.toBe(empreinte);
+  });
+
   it('refuse de relire une partie issue d\'une autre carte', () => {
     // Le pire mode de panne du jeu : sans ce refus, la partie reprend sur
     // l'ancien monde et la moitie de ce que les PNJ racontent n'existe pas.
@@ -216,13 +253,18 @@ describe('empreinte de la carte', () => {
     expect(() => deserialize(data)).not.toThrow();
   });
 
-  it('ne change pas quand le joueur deplace ses affaires', () => {
-    // L'empreinte porte sur la carte du generateur, pas sur la partie en
-    // cours : elle ne doit pas bouger au premier objet ramasse.
+  it('ne change pas quand les habitants marchent', () => {
+    // Un acteur est decrit par son nom et ce qu'il porte, pas par ou il se
+    // tient : une empreinte qui bougerait au premier pas d'un villageois serait
+    // un piege pose pour plus tard.
     const world = buildTown();
+    populate(world);
     const empreinte = mapSignature(world);
-    const { avatar } = populate(world);
-    avatar.tx += 3;
+
+    for (const acteur of world.actors) {
+      acteur.tx += 3;
+      acteur.ty -= 2;
+    }
     expect(mapSignature(world)).toBe(empreinte);
   });
 });

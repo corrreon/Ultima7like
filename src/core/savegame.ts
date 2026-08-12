@@ -42,9 +42,19 @@ const STORAGE_KEY = 'ultima7like.save';
  * ce qu'un numero de version tenu a la main ne fait pas — et c'est justement
  * cet oubli qui a produit le probleme.
  *
- * On ne prend que ce qui vient du generateur de carte : terrain, regions, et
- * objets a leur place d'origine. Ce que le joueur deplace ensuite n'en fait
- * pas partie, sans quoi l'empreinte changerait au premier pas.
+ * On ne prend que ce qui vient du generateur de carte : terrain, regions,
+ * objets a leur place d'origine, habitants et ce qu'ils portent. Ce que le
+ * joueur deplace ensuite n'en fait pas partie, sans quoi l'empreinte changerait
+ * au premier pas.
+ *
+ * **Le contenu des conteneurs compte, et cet oubli a coute une seconde fois.**
+ * Le premier jet ne decrivait que les objets poses — `world.allObjects()` ne
+ * donne que la racine de chaque arborescence. Remplir la caisse du campement
+ * laissait donc l'empreinte inchangee, et une partie en cours continuait de
+ * montrer une caisse vide : exactement la panne que cette fonction existe pour
+ * empecher, sur le seul cas qu'elle ne couvrait pas. Le butin, la bourse d'un
+ * marchand et l'inventaire de depart de l'Avatar font partie de la carte au
+ * meme titre qu'un mur.
  */
 export function mapSignature(world: World): string {
   let h = 0x811c9dc5;
@@ -55,15 +65,32 @@ export function mapSignature(world: World): string {
     }
   };
 
+  // Un objet et tout ce qu'il contient, en une chaine. Les enfants sont tries
+  // entre eux : l'ordre d'insertion dans un conteneur n'a aucun sens pour le
+  // joueur, et ne doit donc pas peser sur l'empreinte.
+  const decrire = (obj: GameObject): string => {
+    const dedans = obj.contents.map(decrire).sort().join('+');
+    const quantite = obj.quantity > 1 ? `x${obj.quantity}` : '';
+    return `${obj.shapeId}${quantite}${dedans ? `(${dedans})` : ''}`;
+  };
+
   melange(`${world.widthTiles}x${world.heightTiles}`);
   for (let ty = 0; ty < world.heightTiles; ty++) {
     for (let tx = 0; tx < world.widthTiles; tx++) melange(world.terrainAt(tx, ty));
   }
   for (const region of world.regions) melange(region.name);
+
   const objets = [...world.allObjects()]
-    .map((o) => `${o.shapeId}@${o.tx},${o.ty},${o.tz}`)
+    .map((o) => `${o.tx},${o.ty},${o.tz}:${decrire(o)}`)
     .sort();
   for (const objet of objets) melange(objet);
+
+  // Les acteurs sont decrits par leur nom et ce qu'ils portent, **jamais par
+  // leur position** : ils marchent. Une empreinte qui bougerait au premier pas
+  // d'un villageois serait un piege pose pour plus tard, meme si elle n'est
+  // aujourd'hui calculee que sur un monde neuf.
+  const acteurs = world.actors.map((a) => `${a.displayName}:${decrire(a)}`).sort();
+  for (const acteur of acteurs) melange(acteur);
 
   return (h >>> 0).toString(36);
 }
