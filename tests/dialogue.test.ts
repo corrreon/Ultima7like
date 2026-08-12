@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import '../src/data/dialogue';
 import { allConversations } from '../src/script/conversation';
+import { buildTown } from '../src/data/town';
+import { populate } from '../src/data/npcs';
 
 /**
  * Integrite des arbres de dialogue.
@@ -11,6 +13,13 @@ import { allConversations } from '../src/script/conversation';
  * terminer sans qu'aucune trace n'apparaisse nulle part.
  */
 describe('arbres de dialogue', () => {
+  // Peupler le bourg **avant** de collecter les conversations : celles des
+  // habitants quelconques sont generees a ce moment-la, et n'existent pas au
+  // chargement du module. Sans cet appel, ce fichier ne verifiait que les
+  // quatre arbres ecrits a la main — et laissait passer seize arbres generes
+  // dont aucun n'avait de sortie, ce qui bloquait le panneau de dialogue
+  // ouvert pour de bon.
+  populate(buildTown());
   const convs = allConversations();
 
   it('ne reference que des sujets qui existent', () => {

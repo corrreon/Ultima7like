@@ -27,7 +27,7 @@ import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } fro
 import { accorderCombat, compagnons, congedier } from './sim/party';
 import { HEURE_REVEIL, reposer } from './sim/repos';
 import { MOTIFS, acheter, vendre } from './script/commerce';
-import { use, type UsecodeContext } from './script/usecode';
+import { aUnUsage, use, type UsecodeContext } from './script/usecode';
 import { LANDMARKS, buildTown } from './data/town';
 import { populate } from './data/npcs';
 import type { World } from './world/world';
@@ -745,10 +745,12 @@ class Game {
         .filter((o) => !o.shape.roof)
         .sort((a, b) => b.tz - a.tz);
       for (const obj of objects) {
-        const shape = obj.shape;
-        // On ne declenche que ce qui a un effet visible : inutile de « manger »
-        // le plancher parce qu'il etait la premiere tuile balayee.
-        if (!shape.door && !shape.container && !shape.takeable && shape.id !== 'anvil') continue;
+        // On ne declenche que ce qui a un comportement — voir `aUnUsage`. La
+        // question est posee au registre d'usecode et non a une liste de
+        // drapeaux tenue ici : c'est ce qui evite qu'un objet recoive un usage
+        // sans devenir accessible au doigt, comme cela s'est produit pour le
+        // lit et le sommeil.
+        if (!aUnUsage(obj)) continue;
         if (use(obj, this.usecodeContext)) return;
       }
     }

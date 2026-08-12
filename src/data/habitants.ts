@@ -209,7 +209,11 @@ function conversation(id: string, nom: string, metier: Metier, rumeur: Rumeur): 
       text: rumeur.texte,
       ...(rumeur.requires ? { requires: rumeur.requires } : {}),
     },
-    { id: 'adieu', label: 'Au revoir', text: 'Bonne route a vous.' },
+    // `ends` ferme le panneau. Sans lui, « Au revoir » repond poliment et
+    // laisse la conversation ouverte : plus aucun moyen d'en sortir par le
+    // dialogue. Le texte reste vide, la phrase d'adieu etant celle de la
+    // conversation.
+    { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ];
 
   // La rumeur perimee est remplacee par une phrase neutre plutot que retiree :

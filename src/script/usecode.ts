@@ -50,6 +50,33 @@ export function onUse(shapeId: string, handler: UsecodeHandler): void {
 }
 
 /**
+ * Cet objet fait-il quelque chose quand on l'utilise ?
+ *
+ * Le bouton « Agir » du tactile balaie les tuiles autour de l'Avatar et doit
+ * ecarter ce qui ne repondrait pas — inutile de « manger » le plancher parce
+ * qu'il etait la premiere case rencontree. Il le faisait avec une liste de
+ * drapeaux ecrite a la main : portes, contenants, objets transportables et
+ * l'enclume, nommee en dur.
+ *
+ * Cette liste a derive. Le lit a recu le sommeil, l'atre se couvre, l'enseigne
+ * se lit, le reverbere se regarde — aucun n'y figurait, donc **rien de tout
+ * cela n'etait accessible au doigt**. Mesure dans le jeu : au pied d'un lit, le
+ * bouton ouvrait la porte de la chambre.
+ *
+ * La question a poser n'est pas « de quel type est cet objet » mais « a-t-il un
+ * comportement », et c'est le registre d'usecode qui le sait. Ainsi la liste ne
+ * peut plus se desynchroniser : enregistrer un comportement suffit a le rendre
+ * accessible au doigt.
+ */
+export function aUnUsage(obj: GameObject): boolean {
+  if (handlers.has(obj.shapeId)) return true;
+  const shape = obj.shape;
+  if (shape.door === true || shape.container === true) return true;
+  if ((shape.food ?? 0) > 0) return true;
+  return shape.takeable === true && obj.parent === null;
+}
+
+/**
  * Declenche l'usage d'un objet.
  * Retourne false si rien n'etait prevu, pour que l'appelant affiche un message.
  */
