@@ -4,7 +4,19 @@ import type { World } from '../world/world';
 import { craftsmanSchedule } from '../sim/schedule';
 import { LANDMARKS } from './town';
 import { ETAL } from '../script/commerce';
+import { Rng } from '../core/rng';
+import { habitantsQuelconques } from './habitants';
 import './dialogue';
+
+/**
+ * Habitants quelconques, en plus des quatre personnages nommes.
+ *
+ * Seize : assez pour que la place ne soit jamais vide et qu'on croise du monde
+ * sur la route, pas assez pour que le bourg ait l'air d'une ville — ce qu'il
+ * n'est pas encore, faute de maisons pour les loger. Le nombre est le seul
+ * reglage a toucher le jour ou la carte grandira.
+ */
+const HABITANTS_QUELCONQUES = 16;
 
 /**
  * Habitants de Valmoret.
@@ -171,11 +183,46 @@ export function populate(world: World): Population {
     npcs.push(brigand);
   }
 
+  // Les habitants quelconques. Ils n'ont ni quete ni portrait propre, et c'est
+  // le principe : une ville est faite de gens qui ne sont pas des personnages.
+  // Voir `habitants.ts` pour le raisonnement.
+  //
+  // Graine fixe : l'empreinte de carte tient compte des habitants et de ce
+  // qu'ils portent, donc un tirage different a chaque lancement refuserait
+  // toutes les sauvegardes.
+  const rng = new Rng(20250812);
+  for (const habitant of habitantsQuelconques(HABITANTS_QUELCONQUES, {
+    place: L.square,
+    taverne: L.tavernTableB,
+  }, rng)) {
+    npcs.push(habitant);
+  }
+
   for (const npc of npcs) {
+    // Un emploi du temps genere peut tomber sur un mur ou dans l'etang. On
+    // ecarte la personne plutot que de la laisser naitre dans la pierre : elle
+    // en sortirait au premier pas, mais on l'aurait vue dedans.
+    const libre = caseLibreAutour(world, npc.tx, npc.ty);
+    npc.tx = libre.tx;
+    npc.ty = libre.ty;
     npc.px = npc.tx;
     npc.py = npc.ty;
     world.addActor(npc);
   }
 
   return { avatar, npcs };
+}
+
+/** Premiere case franchissable en spirale autour de celle-ci. */
+function caseLibreAutour(world: World, tx: number, ty: number): { tx: number; ty: number } {
+  if (!world.isBlocked(tx, ty)) return { tx, ty };
+  for (let rayon = 1; rayon <= 6; rayon++) {
+    for (let dy = -rayon; dy <= rayon; dy++) {
+      for (let dx = -rayon; dx <= rayon; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rayon) continue;
+        if (!world.isBlocked(tx + dx, ty + dy)) return { tx: tx + dx, ty: ty + dy };
+      }
+    }
+  }
+  return { tx, ty };
 }
