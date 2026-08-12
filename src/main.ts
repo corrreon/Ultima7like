@@ -366,6 +366,7 @@ class Game {
     this.moveAvatar(dt);
     this.fightNearby(dt);
 
+    this.ai.beginFrame();
     for (const actor of this.world.actors) {
       if (actor === this.avatar) continue;
       this.ai.update(actor, dt);

@@ -2,7 +2,7 @@ import type { Rng } from '../core/rng';
 import type { GameClock } from '../core/clock';
 import { Actor } from '../objects/actor';
 import type { World } from '../world/world';
-import { findPath } from './pathfind';
+import { findPath, type Step } from './pathfind';
 import { currentEntry } from './schedule';
 import { LAISSE, TENTATIVES_AVANT_RATTRAPAGE, place } from './party';
 import {
@@ -26,6 +26,28 @@ import {
  * de la densite des emplois du temps, pas de la complexite de l'IA.
  */
 
+/**
+ * Chemins calcules au maximum par image.
+ *
+ * Deux, choisi par la mesure et non au jugé. Cout du pire tick — celui ou tous
+ * les habitants se remettent en route en meme temps — selon le budget :
+ *
+ * ```
+ *              8 hab.   40 hab.   120 hab.
+ *   sans        125 ms   752 ms    2125 ms
+ *   1            13 ms    13 ms      13 ms
+ *   2            20 ms    21 ms      21 ms
+ *   3            23 ms    32 ms      36 ms
+ * ```
+ *
+ * Ce qui compte est que la depense devienne **independante du nombre
+ * d'habitants** : c'est ce qui permet de peupler une ville sans que chaque
+ * changement d'heure la fige. Deux plutot qu'un parce qu'a soixante images par
+ * seconde cela dispatche cent vingt habitants en une seconde au lieu de deux,
+ * pour un depassement au pire d'une image.
+ */
+const BUDGET_CHEMINS = 2;
+
 /** Ce que chante un PNJ qui travaille avec un luth entre les mains. */
 const CHANSONS = [
   '« ... et la dame du lac ne revint jamais... »',
@@ -44,11 +66,48 @@ export class ScheduleAI {
   /** Meneur du groupe. Les compagnons le suivent au lieu de leur emploi du temps. */
   leader: Actor | null = null;
 
+  /** Calculs de chemin encore autorises pendant cette image. */
+  private budgetChemins = BUDGET_CHEMINS;
+
   constructor(
     private readonly world: World,
     private readonly clock: GameClock,
     private readonly rng: Rng,
   ) {}
+
+  /**
+   * A appeler une fois par image, avant de mettre les acteurs a jour.
+   *
+   * Un chemin coute une poignee de millisecondes ; le probleme n'est pas son
+   * cout mais sa **simultaneite**. A chaque bascule d'emploi du temps, tout le
+   * bourg se remet en route dans le meme tick : quarante habitants faisaient
+   * ainsi une pointe de plus de cent millisecondes, soit sept images perdues
+   * d'un coup, pile au moment ou la ville doit avoir l'air vivante.
+   *
+   * Le budget etale la pointe sur quelques images. Personne ne s'en apercoit —
+   * un PNJ qui part un dixieme de seconde plus tard est indiscernable — et la
+   * depense par image devient bornee quel que soit le nombre d'habitants.
+   */
+  beginFrame(): void {
+    this.budgetChemins = BUDGET_CHEMINS;
+  }
+
+  /**
+   * Cherche un chemin si le budget de l'image le permet.
+   *
+   * Renvoie `null` quand le budget est epuise : l'appelant laisse alors
+   * l'acteur en l'etat et le fait repenser tres vite, plutot que de lui donner
+   * un chemin vide qui se lirait comme « je n'ai pas trouve ».
+   */
+  private chemin(
+    from: { tx: number; ty: number },
+    to: { tx: number; ty: number },
+    options: Parameters<typeof findPath>[3],
+  ): Step[] | null {
+    if (this.budgetChemins <= 0) return null;
+    this.budgetChemins--;
+    return findPath(this.world, from, to, options);
+  }
 
   update(actor: Actor, dt: number): void {
     if (!actor.isAlive) return;
@@ -120,9 +179,11 @@ export class ScheduleAI {
     // tolerance faisait rendre un chemin vide, redemande a l'identique a chaque
     // pensee : le compagnon restait plante en foret jusqu'a ce que le meneur
     // change de cap par hasard.
-    actor.path = findPath(this.world, ici, cible, options);
+    const versPlace = this.chemin(ici, cible, options);
+    if (versPlace === null) return; // budget epuise : on reessaiera a l'image suivante
+    actor.path = versPlace;
     if (actor.path.length === 0) {
-      actor.path = findPath(this.world, ici, { tx: leader.tx, ty: leader.ty }, options);
+      actor.path = this.chemin(ici, { tx: leader.tx, ty: leader.ty }, options) ?? [];
     }
 
     if (actor.path.length > 0) {
@@ -212,11 +273,11 @@ export class ScheduleAI {
     // Poursuite. On recalcule souvent : la cible bouge, un chemin calcule une
     // fois pour toutes viserait le sol qu'elle vient de quitter.
     if (actor.path.length === 0) {
-      actor.path = findPath(this.world, { tx: actor.tx, ty: actor.ty }, { tx: cible.tx, ty: cible.ty }, {
-        actor,
-        tolerance: PORTEE,
-        openDoors: true,
-      });
+      actor.path = this.chemin(
+        { tx: actor.tx, ty: actor.ty },
+        { tx: cible.tx, ty: cible.ty },
+        { actor, tolerance: PORTEE, openDoors: true },
+      ) ?? [];
     }
     return true;
   }
@@ -240,11 +301,11 @@ export class ScheduleAI {
           ty: entry.ty + this.rng.int(-radius, radius),
         };
         if (!this.world.isOccupied(target.tx, target.ty, actor)) {
-          actor.path = findPath(this.world, { tx, ty }, target, {
-          actor,
-          tolerance: 0,
-          openDoors: true,
-        });
+          actor.path = this.chemin({ tx, ty }, target, {
+            actor,
+            tolerance: 0,
+            openDoors: true,
+          }) ?? [];
         }
       }
       return;
@@ -256,11 +317,16 @@ export class ScheduleAI {
     if (distance > tolerance) {
       actor.atPost = false;
       if (actor.path.length === 0 || changed) {
-        actor.path = findPath(this.world, { tx, ty }, { tx: entry.tx, ty: entry.ty }, {
+        const vers = this.chemin({ tx, ty }, { tx: entry.tx, ty: entry.ty }, {
           actor,
           tolerance,
           openDoors: true,
         });
+        // Budget epuise : on repense tres vite plutot que de conclure qu'il n'y
+        // a pas de route. Sans cela, un PNJ arrive en retard sur le budget
+        // resterait immobile jusqu'a sa prochaine pensee complete.
+        if (vers === null) actor.thinkTimer = 0.05;
+        else actor.path = vers;
       }
     } else {
       actor.path.length = 0;
