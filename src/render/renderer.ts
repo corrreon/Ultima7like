@@ -33,6 +33,18 @@ interface TileRect {
 }
 
 /**
+ * Cet objet fait-il partie du sol ?
+ *
+ * Une hauteur nulle veut dire « pose a plat » : un tapis, des cailloux, une
+ * touffe d'herbe. Rien ne passe dessous, tout passe dessus — ils sortent donc
+ * du tri en profondeur et sont dessines avec le terrain.
+ */
+export function isFloorProp(obj: GameObject): boolean {
+  const shape = obj.shape;
+  return shape.kind === 'object' && !shape.roof && shape.height === 0 && obj.tz === 0;
+}
+
+/**
  * Rendu de la scene.
  *
  * L'ordre des passes reproduit celui d'un decor peint : le sol, puis les
@@ -76,6 +88,7 @@ export class Renderer {
     const insideRegion = world.regionAt(Math.round(avatar.px), Math.round(avatar.py));
     const hiddenRegion = insideRegion?.name ?? null;
 
+    this.drawFloorProps(world, view, hiddenRegion, clock);
     this.drawShadows(world, view, hiddenRegion);
 
     this.drawables.length = 0;
@@ -147,6 +160,44 @@ export class Renderer {
     // Le dephasage par tuile fait courir la houle au lieu de faire clignoter
     // toute la surface d'un bloc.
     return Math.floor(this.time * 3 + (tx + ty) * 0.35) % 4;
+  }
+
+  // --- Revetements de sol ---------------------------------------------------
+
+  /**
+   * Objets plats : tapis, cailloux, touffes d'herbe.
+   *
+   * Ils sont dessines juste apres le terrain, hors du tri en profondeur, parce
+   * qu'ils **font partie du sol** : rien ne passe dessous, tout passe dessus.
+   *
+   * Sans cette passe, un tapis masque le personnage qui marche dessus. La cle
+   * de tri ne peut pas s'en sortir : elle donne une profondeur unique a l'objet
+   * entier, calculee depuis son coin bas-droit, alors qu'un tapis de 3x2
+   * s'etend sur six cases. Un garde debout sur le coin haut-gauche du tapis a
+   * donc une profondeur inferieure de trois au tapis lui-meme, et se retrouve
+   * dessous — c'est la limite connue du tri par cle, sur le cas ou elle se voit
+   * le plus.
+   *
+   * Les ombres de contact viennent apres, ce qui est correct : l'ombre d'un
+   * meuble doit tomber sur le tapis, pas dessous.
+   */
+  private drawFloorProps(
+    world: World,
+    view: TileRect,
+    hiddenRegion: string | null,
+    clock: GameClock,
+  ): void {
+    for (const obj of world.objectsInRect(view.x0, view.y0, view.x1, view.y1)) {
+      if (!isFloorProp(obj)) continue;
+      if (this.hiddenUnderRoof(world, obj.tx, obj.ty, hiddenRegion)) continue;
+      const sprite = getSprite(obj.shapeId, this.objectFrame(obj, clock));
+      const { sx, sy } = this.camera.worldToScreen(obj.tx, obj.ty, obj.tz);
+      this.ctx.drawImage(
+        sprite.canvas,
+        Math.round(sx - sprite.width),
+        Math.round(sy - sprite.height),
+      );
+    }
   }
 
   // --- Ombres portees ------------------------------------------------------
@@ -284,6 +335,8 @@ export class Renderer {
         this.push(obj, getSprite(obj.shapeId, this.objectFrame(obj, clock)));
         continue;
       }
+      // Les revetements de sol ont deja ete dessines avec le terrain.
+      if (isFloorProp(obj)) continue;
       if (this.hiddenUnderRoof(world, obj.tx, obj.ty, hiddenRegion)) continue;
       this.push(obj, getSprite(obj.shapeId, this.objectFrame(obj, clock)));
     }

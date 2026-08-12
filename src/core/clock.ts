@@ -24,6 +24,21 @@ export class GameClock {
     this.minutes += realSeconds * GAME_MINUTES_PER_SECOND;
   }
 
+  /**
+   * Saute jusqu'a la prochaine occurrence de cette heure. Retourne le nombre de
+   * minutes de jeu ecoulees.
+   *
+   * Sert au repos : dormir n'est pas « attendre plus vite », c'est passer a la
+   * suite. Toujours vers l'avant — un saut de zero minute reculerait d'un jour
+   * si on dormait pile a l'heure du reveil.
+   */
+  skipToHour(hour: number): number {
+    const cible = Math.floor(this.minutes / (60 * 24)) * 60 * 24 + hour * 60;
+    const minutes = cible > this.minutes ? cible - this.minutes : cible + 60 * 24 - this.minutes;
+    this.minutes += minutes;
+    return minutes;
+  }
+
   get minute(): number {
     return Math.floor(this.minutes) % 60;
   }

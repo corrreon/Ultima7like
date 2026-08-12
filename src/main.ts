@@ -24,6 +24,7 @@ import { ConversationState, getConversation } from './script/conversation';
 import { applyEffect, journal, refreshWorldFlags } from './script/quests';
 import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
 import { accorderCombat, compagnons, congedier } from './sim/party';
+import { HEURE_REVEIL, reposer } from './sim/repos';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { use, type UsecodeContext } from './script/usecode';
 import { LANDMARKS, buildTown } from './data/town';
@@ -277,7 +278,42 @@ class Game {
       openContainer: (obj) => this.ui.openContainer(obj, obj.name),
       startConversation: (npc) => this.startConversation(npc),
       take: (obj) => this.take(obj),
+      dormir: () => this.dormir(),
     };
+  }
+
+  /**
+   * Dort jusqu'au matin : le groupe recupere tout, la nuit passe.
+   *
+   * L'horloge saute plutot que d'accelerer. Dormir n'est pas « attendre plus
+   * vite » — c'est passer a la suite, et le bourg doit avoir bouge pendant ce
+   * temps. Les PNJ n'ont rien de special a faire pour cela : leur emploi du
+   * temps les replace des le premier tick suivant.
+   */
+  private dormir(): void {
+    const issue = reposer(this.avatar, compagnons(this.world.actors), this.world.actors);
+
+    if (issue.kind === 'menace') {
+      this.ui.addLog(`Impossible de dormir : ${issue.par.displayName} rode dans les parages.`);
+      return;
+    }
+    if (issue.kind === 'inutile') {
+      this.ui.addLog('Un lit accueillant, mais vous etes frais et dispos.');
+      return;
+    }
+
+    const minutes = this.clock.skipToHour(HEURE_REVEIL);
+    this.ui.addLog(
+      `Vous dormez ${Math.round(minutes / 60)} heures. Vous vous reveillez repose (+${issue.soignes}).`,
+    );
+    // Le monde a change d'heure d'un coup : on efface les intentions en cours,
+    // sans quoi chacun finirait le trajet qu'il avait entrepris la veille.
+    for (const actor of this.world.actors) {
+      actor.path.length = 0;
+      actor.atPost = false;
+      actor.thinkTimer = 0;
+    }
+    this.save(true);
   }
 
   /**

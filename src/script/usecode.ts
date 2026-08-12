@@ -1,6 +1,7 @@
 import { GameObject } from '../objects/gameobject';
 import { Actor } from '../objects/actor';
 import type { World } from '../world/world';
+import { soigner, soinsDuRepas } from '../sim/repos';
 
 /**
  * « Usecode » : le comportement des objets quand on les utilise.
@@ -32,6 +33,11 @@ export interface UsecodeContext {
    * objet transportable qui n'a pas d'autre usage le range donc directement.
    */
   take: (obj: GameObject) => boolean;
+  /**
+   * Dort jusqu'au matin. L'usecode ne connait ni l'horloge ni les hostiles :
+   * il declare l'intention, le jeu en tire les consequences.
+   */
+  dormir: () => void;
 }
 
 export type UsecodeHandler = (obj: GameObject, ctx: UsecodeContext) => void;
@@ -69,7 +75,14 @@ export function use(obj: GameObject, ctx: UsecodeContext): boolean {
   }
 
   if (shape.food) {
-    ctx.log(`Vous mangez ${obj.name.toLowerCase()}.`);
+    // Manger est le seul soin qu'on ait toujours sur soi. Le message dit ce
+    // qu'on a gagne, sinon rien ne distingue une miche d'une pomme.
+    const rendus = soigner(ctx.actor, soinsDuRepas(shape.food));
+    ctx.log(
+      rendus > 0
+        ? `Vous mangez ${obj.name.toLowerCase()}. Vous vous sentez mieux (+${rendus}).`
+        : `Vous mangez ${obj.name.toLowerCase()}.`,
+    );
     consumeOne(obj, ctx.world);
     return true;
   }
@@ -111,9 +124,8 @@ export function consumeOne(obj: GameObject, world: World): void {
 
 // --- Comportements specifiques -------------------------------------------
 
-onUse('bed', (_obj, ctx) => {
-  ctx.log('Un lit accueillant. Vous n\'avez pas sommeil.');
-});
+onUse('bed', (_obj, ctx) => ctx.dormir());
+onUse('canopybed', (_obj, ctx) => ctx.dormir());
 
 onUse('anvil', (_obj, ctx) => {
   const hammer = ctx.actor.findItem('hammer');
