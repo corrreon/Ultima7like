@@ -9,9 +9,9 @@ dans les décisions.
 Le moteur est une **simulation à laquelle on ajoute un rendu**, et non un moteur
 graphique auquel on ajoute des règles. Concrètement :
 
-- la logique pure (objets, monde, pathfinding, emplois du temps, dialogues) ne
-  dépend jamais du DOM, et tourne donc sous Node — c'est ce qui rend les 61
-  tests possibles sans navigateur ;
+- la logique pure (objets, monde, pathfinding, emplois du temps, dialogues,
+  combat, groupe, quêtes, commerce) ne dépend jamais du DOM, et tourne donc sous
+  Node — c'est ce qui rend les 136 tests possibles sans navigateur ;
 - toute la connaissance du canvas est confinée à `src/render/` et `src/input/`.
 
 Cette séparation n'est pas cosmétique : elle permet de tester qu'un PNJ rentre
@@ -116,10 +116,26 @@ rayon.
 ### Art
 
 `src/render/art.ts` dessine tous les sprites au démarrage dans des canvas hors
-écran. C'est une contrainte volontaire (aucune donnée sous copyright dans le
-dépôt) qui a un effet secondaire agréable : le projet n'a aucun asset binaire.
-Le remplacer par un chargeur d'atlas PNG ne demande que de respecter
-l'interface `Sprite` — rien d'autre dans le moteur ne connaît le format.
+écran. C'est une contrainte volontaire — aucune donnée sous copyright dans le
+dépôt — et sa seule interface publique est `Sprite { canvas, width, height }`.
+
+`src/render/atlas.ts` exploite exactement cette interface : il charge des
+planches PNG et **écrase les sprites procéduraux, une cellule à la fois**, de
+façon asynchrone. Rien d'autre dans le moteur ne connaît le format des images,
+donc la substitution n'a demandé aucune modification ailleurs — c'était le pari
+de départ, et il a tenu.
+
+Deux propriétés de ce chargeur comptent plus que le reste :
+
+- **il est tolérant.** Une planche absente, illisible ou à moitié bonne n'empêche
+  jamais de jouer : les cellules manquantes gardent leur sprite procédural. C'est
+  la seule façon réaliste de remplacer cent sprites — sinon rien n'est jouable
+  tant que tout n'est pas fait ;
+- **il recadre sur le contenu réel**, en deux passes. La seconde passe existe
+  parce qu'un `group` — les six poses d'un personnage — doit recevoir un cadre
+  commun, qui dépend de toutes ses cellules à la fois.
+
+Méthode de production des planches, prompts compris : [PLANCHES.md](PLANCHES.md).
 
 ## Simulation
 
@@ -166,6 +182,26 @@ Deux notions voisines qu'il ne faut surtout pas confondre :
 il faut pouvoir ouvrir la porte devant laquelle on se tient, alors qu'elle est
 elle-même opaque. Sans ce mécanisme, on fouille les coffres à travers les murs
 — ce qui arrive en permanence, les bâtiments étant petits.
+
+### Les règles du jeu vivent dans des modules purs
+
+`sim/combat.ts`, `sim/party.ts`, `script/quests.ts`, `script/commerce.ts` ne
+connaissent ni le monde, ni le rendu, ni l'horloge. Chacun répond à des questions
+fermées — cette cible est-elle encore valable, où ce compagnon doit-il se tenir,
+ce marchand peut-il payer — et se vérifie donc entièrement en test, à graine
+fixée.
+
+Ce n'est pas de la coquetterie architecturale : **c'est ce qui a permis de faire
+traverser une quête entière à un test**, et c'est cette traversée qui a révélé
+que le sujet de dialogue démarrant la quête était inatteignable. Aucune relecture
+de code ne l'avait vu.
+
+La limite, apprise à l'usage : un module pur vérifie la règle, jamais la
+sensation. Le nombre d'adversaires simultanés qui rend un combat en temps réel
+injouable, un compagnon qui se croit arrivé à trois tuiles de son meneur, un
+objet transportable dessiné à la largeur de la table qui le porte — tout cela ne
+se voit qu'en jouant, et a été trouvé en pilotant le jeu compilé dans un
+navigateur, pas en lisant le code.
 
 ## Entrées et interface tactile
 
@@ -275,6 +311,24 @@ diffèrent presque toujours. En séparant les deux — plages sur les identifian
 chaîne d'un chiffre par case pour les variantes — on passe de 7043 plages à
 moins de 900 pour 9216 cases.
 
+### Une sauvegarde fige la carte, et il faut le savoir
+
+Conséquence directe du choix « on sauvegarde le monde entier » : une partie
+reprise après une mise à jour de la carte rejoue **l'ancienne carte**. Le
+symptôme est déroutant — les PNJ parlent d'un sentier et d'un campement qui
+n'existent nulle part — et rien ne le signale, puisque la sauvegarde est
+parfaitement valide.
+
+D'où `mapSignature(world)` : une empreinte FNV-1a des dimensions, du terrain, des
+régions et des objets, calculée **sur le monde neuf**, rangée dans la sauvegarde
+et comparée à la lecture. Une partie issue d'une autre carte est refusée en le
+disant, plutôt que reprise dans un monde périmé.
+
+Un détail d'interface a compté autant que le mécanisme : `readFromStorage`
+renvoie un *résultat* (`ok`, `aucune`, `perimee`, `illisible`) et non une valeur
+nullable. La première version renvoyait `null` dans tous les cas d'échec, ce qui
+obligeait l'appelant à désérialiser deux fois pour savoir pourquoi.
+
 ### Ce qui doit être reconstruit au chargement
 
 Remplacer le monde ne suffit pas : tout ce qui en gardait une référence devient
@@ -287,6 +341,6 @@ produit pendant l'écriture.
 
 ## Ce qui n'est pas fait
 
-Volontairement hors périmètre de ce prototype, par ordre d'importance :
-sauvegarde, combat, magie, commerce, streaming réel des chunks, éditeur de
-cartes, son. Voir [ROADMAP.md](ROADMAP.md).
+Sauvegarde, combat, groupe, quêtes et commerce sont désormais faits ; restent
+hors périmètre, par ordre d'importance : magie, faim et fatigue, serrures,
+streaming réel des chunks, éditeur de cartes, son. Voir [ROADMAP.md](ROADMAP.md).

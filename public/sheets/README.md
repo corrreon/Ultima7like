@@ -3,6 +3,11 @@
 Déposez ici les planches PNG, puis déclarez leurs cellules dans
 `src/data/sheets.ts`.
 
+**Pour en produire de nouvelles**, les prompts qui ont donné celles-ci sont
+conservés mot pour mot dans [`docs/PLANCHES.md`](../../docs/PLANCHES.md), avec
+ce qu'il a fallu apprendre pour qu'ils fonctionnent — la projection, la
+cohérence entre les six poses d'un personnage, et les pièges du détourage.
+
 ## Convention
 
 Grille régulière, un objet par cellule, fond magenta `#FF00FF`.
@@ -65,8 +70,8 @@ node tools/detourer-planches.mjs source.jpg=mobilier --marge 0
 Il efface le bord des cellules, détoure par remplissage depuis ce bord plutôt
 que par un seuil sur la couleur — c'est ce qui emporte le halo de compression,
 qu'aucun seuil ne distingue proprement d'un pixel de dessin — puis réduit à
-512 px et seuille l'alpha pour rendre au pixel art ses bords francs. Les neuf
-planches pèsent 456 Ko en tout.
+512 px et seuille l'alpha pour rendre au pixel art ses bords francs. Les seize
+planches pèsent 792 Ko en tout, pour 104 sprites.
 
 Le résultat est **déjà détouré** : le fond y est transparent, pas magenta. Le
 chargeur accepte les deux, la convention magenta reste celle des sources.

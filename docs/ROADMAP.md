@@ -123,10 +123,40 @@ mentionné dans aucune quête — le journal restait muet alors que Jehan en
 parlait — et rien ne menait à lui. Il a donc fallu une quête complète, un
 sentier qui parte de la route, et un feu de camp qui serve de repère la nuit.
 
+## Fait — le commerce (v0.8)
+
+Le troisième verbe du jeu, après marcher et parler. Il tient dans un module pur
+(`src/script/commerce.ts`) : ce qu'un marchand accepte, à quel prix il l'achète
+et le revend, et ce que la bourse permet.
+
+- [x] Prix dérivés de `shape.value`, avec une marge : on revend moins cher
+      qu'on n'achète, sinon l'aller-retour est une machine à or
+- [x] Bourse du marchand : il ne peut pas acheter au-delà de ce qu'il a
+- [x] Panneau d'échange, au doigt comme à la souris
+- [x] Le marchand refuse ce qu'il ne peut pas porter
+
+Deux défauts sortis de l'essai, pas de la théorie : `Actor.canAccept` répondait
+toujours oui, un marchand acceptait donc une charrette entière ; et le panneau
+laissait les clics le traverser jusqu'au monde, si bien qu'acheter faisait
+marcher l'Avatar. Un panneau modal doit **consommer** ce qu'il reçoit.
+
+## Fait — ramasser et piller (v0.9)
+
+- [x] Ramassage en un geste : « utiliser » un objet transportable posé au sol le
+      range directement, au lieu du prendre-en-main / ouvrir-le-sac / déposer
+      d'origine — trois gestes pour une pièce d'or, et rien d'équivalent au
+      doigt
+- [x] Rangement qui choisit sa place : un tas de même nature d'abord, un
+      conteneur qui a la place ensuite, l'inventaire nu en dernier
+- [x] Butin au campement des brigands — la caisse, le sac et le tonneau y
+      étaient posés en décor et vides, ce qui faisait défendre par trois hommes
+      un endroit où il n'y avait rien
+- [x] Un test refuse tout conteneur vide à moins de six tuiles du feu
+
 ## Étape suivante — la boucle de jeu
 - [ ] **Faim et fatigue** — les valeurs `food` existent déjà sur les shapes
-- [ ] **Commerce** : achat/vente à partir de `shape.value`, bourse des PNJ
 - [ ] **Magie** : réactifs, grimoire, sorts comme usecode
+- [ ] **Serrures** : les clefs ont déjà une `quality`, rien ne s'en sert
 
 ## Puis — l'échelle
 
@@ -144,10 +174,12 @@ VII (3072×3072) demande :
 - [ ] Éditeur de cartes (Exult a le sien, tout projet sérieux finit par en
       avoir besoin)
 - [ ] Éditeur de dialogues et d'emplois du temps
-- [ ] Chargement de sprites depuis un atlas, en remplacement de l'art
-      procédural — sans toucher au moteur, seule l'interface `Sprite` compte
+- [x] Chargement de sprites depuis un atlas, en remplacement de l'art
+      procédural — sans toucher au moteur, seule l'interface `Sprite` compte.
+      Prompts et méthode conservés dans [PLANCHES.md](PLANCHES.md)
 - [ ] Son et musique
-- [ ] Sauvegarde automatique, options, remappage des touches
+- [x] Sauvegarde automatique
+- [ ] Options, remappage des touches
 
 ## Non prévu
 

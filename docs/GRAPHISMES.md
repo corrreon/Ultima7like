@@ -292,6 +292,32 @@ voulue dans le jeu, la hauteur suit le rapport d'aspect. C'est ce qui permet à
 une bibliothèque de n'occuper qu'une tuile au sol tout en se dessinant sur
 trois de haut.
 
+### Ce chemin a été parcouru
+
+Seize planches sont désormais dans `public/sheets/`, soit **104 sprites peints**
+pour environ 800 Ko : neuf planches d'objets, une de portraits, six de
+personnages. Les prompts qui les ont produites sont conservés dans
+[docs/PLANCHES.md](PLANCHES.md), avec ce qu'il a fallu apprendre pour qu'ils
+fonctionnent.
+
+Trois enseignements valent d'être retenus hors de ce dépôt :
+
+- **La projection est le seul point vraiment coriace.** Tout ce qu'un modèle
+  d'image a vu étiqueté « pixel art RPG » est isométrique. Nommer la projection
+  voulue ne suffit pas ; donner un contre-exemple géométrique concret — « une
+  table vue de dessus est un **rectangle**, pas un losange » — est la seule
+  formulation qui ait tenu.
+- **Les personnages coûtent dix fois un objet.** Un objet est un dessin isolé ;
+  un personnage en demande six qui doivent être le même, et un écart d'un pixel
+  de hauteur entre deux poses fait sautiller le sprite à chaque pas. D'où
+  `group`, `mirror` et `portrait` dans le chargeur — ajoutés *avant* de générer
+  la première planche de personnage, pas après.
+- **Le réglage vaut le dessin.** Les deux défauts les plus visibles d'une
+  planche fraîchement branchée ne sont pas des défauts de dessin : un objet
+  transportable déclaré à une tuile de large masque entièrement le meuble qui le
+  porte, et un objet posé sans `tz` est dessiné au pied du meuble au lieu du
+  plateau. Ni l'un ni l'autre ne se voit dans le code.
+
 ## Pourquoi des tuiles de 32 pixels
 
 Les tuiles sont passées de 16 à 32 px pour accueillir de vrais dessins sans que
@@ -318,7 +344,9 @@ téléphone.
 Tout ce qui précède est fait dans ce dépôt. Il faut être clair sur la suite :
 **des sprites générés par code ne rattraperont pas des dessins peints à la
 main.** Les artistes d'Origin ont produit des milliers de shapes, et aucun
-algorithme ne remplace ce travail.
+algorithme ne remplace ce travail. C'est bien ce qu'a confirmé le passage aux
+planches : les 104 sprites peints se voient immédiatement, alors qu'aucun
+réglage supplémentaire du procédural n'aurait produit le même écart.
 
 Ce que le code peut faire, et qui est fait ici, c'est :
 
@@ -337,10 +365,14 @@ soi-même — le moteur les accueille sans modification.
 
 Par ordre d'impact :
 
-- [ ] **De vrais dessins**, via un atlas, en remplacement du procédural
+- [x] **De vrais dessins**, via un atlas, en remplacement du procédural —
+      16 planches, 104 sprites peints, méthode et prompts dans
+      [PLANCHES.md](PLANCHES.md)
 - [ ] **Beaucoup plus de shapes** : U7 en compte des milliers, ce dépôt une
       cinquantaine. La variété du mobilier et de la végétation fait à elle
-      seule une grande partie de l'effet
+      seule une grande partie de l'effet. C'est désormais le premier poste :
+      les planches existantes couvrent presque toutes les shapes déclarées,
+      donc l'effort porte sur le contenu, plus sur la plomberie
 - [ ] **Bâtiments de forme libre** — plans en L, appentis, étages, porches,
       lucarnes. Les quatre rectangles actuels limitent la silhouette du bourg
       bien plus que la qualité des tuiles

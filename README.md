@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 132 tests
+npm test         # 136 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -16,8 +16,8 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | | Ordinateur | Mobile |
 |---|---|---|
 | Marcher | flèches / ZQSD, ou clic | stick virtuel, ou toucher |
-| Utiliser, parler | double-clic, ou `E` | bouton **Agir**, ou double-tap |
-| Prendre / poser | clic sur l'objet | toucher l'objet |
+| Utiliser, parler, **ramasser** | double-clic, ou `E` | bouton **Agir**, ou double-tap |
+| Prendre en main / poser | clic sur l'objet | toucher l'objet |
 | Sac | `I` | bouton **Sac** |
 | Journal de quêtes | `J` | bouton **Notes** |
 | Dégainer / rengainer | `C` | bouton **Armes** |
@@ -25,6 +25,11 @@ Une version jouable est publiée automatiquement à chaque poussée sur `main` :
 | Menu (sauver, charger, recommencer) | `M` | bouton **Menu** |
 | Fermer | `Échap` | bouton **Fermer** |
 | Sauver / charger | `F5` / `F9` (`F8` : nouvelle partie) | par le **Menu** |
+
+Un objet posé au sol se ramasse d'un seul geste : « utiliser » un objet
+transportable le range directement, dans la bourse ou le sac s'il y a lieu. Le
+clic simple garde le comportement d'origine — l'objet passe *en main*, et on le
+dépose où l'on veut.
 
 La partie est sauvegardée automatiquement toutes les 30 secondes et quand
 l'onglet passe en arrière-plan ; elle reprend seule au lancement.
@@ -62,9 +67,12 @@ du jeu ne l'est pas** : sprites, musiques, cartes et usecode restent la
 propriété d'Electronic Arts. C'est pourquoi Exult ne livre aucun contenu et
 exige que l'utilisateur possède le jeu.
 
-Ici la contrainte est poussée plus loin : **tous les graphismes sont générés par
-code** au démarrage (`src/render/art.ts`). Le dépôt ne contient aucun octet issu
-d'Ultima VII, et les personnages sont originaux.
+Ici la contrainte est poussée plus loin : **le dépôt ne contient aucun octet issu
+d'Ultima VII**. Les sprites sont d'abord générés par code au démarrage
+(`src/render/art.ts`), puis remplacés par des planches PNG originales
+(`public/sheets/`) produites pour ce projet — les prompts et la méthode sont
+conservés dans [docs/PLANCHES.md](docs/PLANCHES.md). Le bourg, ses habitants et
+leurs histoires sont originaux.
 
 ## 2. Ce qui fait vraiment Ultima VII
 
@@ -177,10 +185,33 @@ tiers d'un téléphone. Grossir l'interface pour le doigt réduit d'autant le
 nombre de points disponibles : au-delà d'un certain facteur, les fenêtres
 couvrent l'écran. Il faut des largeurs calculées, pas fixes.
 
+**Une sauvegarde fige la carte.** Sauver le monde entier plutôt qu'un
+différentiel rend le format robuste, mais une partie reprise après une mise à
+jour rejoue l'ancienne carte : les PNJ parlent alors d'un chemin qui n'existe
+nulle part, et rien ne le signale puisque la sauvegarde est valide. Il faut une
+empreinte de la carte de départ, et refuser en le disant.
+
+**Un compagnon qui suit doit se remettre en marche avant d'être perdu.** Le
+premier réglage — ne recalculer un chemin qu'une fois le précédent épuisé, avec
+une laisse de deux tuiles — laissait le compagnon se croire arrivé à trois
+tuiles du meneur, donc planté derrière un arbre pendant qu'on s'éloignait. Trois
+correctifs cumulés, dont une tolérance d'arrivée : dix-sept blocages mesurés,
+puis zéro.
+
+**Le plus utile a été trouvé en jouant, pas en lisant le code.** Une étagère
+dont les variantes ne changeaient jamais, un lit dessiné de face pour une
+emprise en profondeur, des plats posés au pied de la table plutôt que dessus,
+une nourriture large comme le meuble qui la porte, un sujet de dialogue
+inatteignable : aucun de ces défauts n'apparaît à la relecture, tous sautent aux
+yeux à l'écran. Piloter le jeu compilé dans un navigateur — Playwright, avec une
+poignée de débogage exposée — s'est révélé le meilleur outil de vérification du
+projet, devant les tests unitaires.
+
 ## 5. Ce que contient le prototype
 
-Un bourg, Valmoret : quatre bâtiments, des routes, un étang, et quatre
-habitants qui vivent leur journée.
+Un bourg, Valmoret : cinq bâtiments, des routes, un étang, quatre habitants qui
+vivent leur journée — et, au sud-ouest, un campement de brigands au bout d'un
+sentier.
 
 - **Objets** — poids en 1/10 de stone comme dans l'original, volume, conteneurs
   imbriqués sans limite de profondeur, empilement, surcharge qui ralentit.
@@ -191,6 +222,14 @@ habitants qui vivent leur journée.
 - **Dialogues** — sujets cliquables, drapeaux partagés entre personnages : ce
   que Mireille vous apprend débloque un sujet chez Aldric, dont la réponse
   débloque un sujet chez Basile.
+- **Quêtes** — deux, avec un journal (`J`) déduit des drapeaux et non d'un état
+  parallèle : rendre son luth à Basile, nettoyer le campement pour Jehan.
+- **Combat** — temps réel avec pause (`P`), comme l'original ; camps portés par
+  la shape, arme choisie dans l'inventaire, butin qui tombe au sol.
+- **Groupe** — deux compagnons au maximum, recrutés par le dialogue, qui suivent
+  en formation et dégainent avec le meneur.
+- **Commerce** — achat et vente à partir de `shape.value`, avec la bourse du
+  marchand comme limite réelle.
 - **Jour/nuit** — lumière ambiante interpolée, réverbères qui s'allument au
   crépuscule, torche transportable.
 - **Mobile** — stick virtuel, bouton *Agir* qui vise l'élément interactif le
@@ -200,12 +239,20 @@ habitants qui vivent leur journée.
 - **Sauvegarde** — état complet du monde dans le stockage local, reprise
   automatique au lancement ; format versionné.
 - **Graphismes** — palette unifiée avec tramage, raccords entre terrains,
-  toitures à deux pentes, ombres de contact, eau et flammes animées, portraits
-  de dialogue. La méthode est détaillée dans
-  [docs/GRAPHISMES.md](docs/GRAPHISMES.md).
+  toitures à deux pentes, ombres de contact, eau et flammes animées, puis
+  **16 planches de dessins originaux — 104 sprites peints, portraits de
+  dialogue compris** — qui remplacent le procédural une cellule à la fois. La
+  méthode est détaillée dans [docs/GRAPHISMES.md](docs/GRAPHISMES.md), la
+  production des planches et ses prompts dans
+  [docs/PLANCHES.md](docs/PLANCHES.md).
 
 Une poignée de débogage est exposée dans la console : `u7.clock.advance(600)`
-avance de dix heures, `u7.world` et `u7.avatar` donnent accès à la simulation.
+avance de dix heures, `u7.world` et `u7.avatar` donnent accès à la simulation,
+`u7.getSprite` et `u7.getPortrait` permettent de vérifier qu'un dessin chargé
+depuis une planche a bien la taille attendue, et `u7.findPath` de demander
+« pourquoi ce PNJ ne bouge pas ? » — une question à laquelle l'écran ne répond
+pas. Ces accès sont des **accesseurs**, pas des copies : figés, ils pointeraient
+vers le monde d'avant après un chargement de partie.
 
 ## 6. Aller plus loin
 
@@ -228,9 +275,15 @@ src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues, les planches
 public/       les planches de dessins
-tests/        132 tests sur la logique pure
-docs/         architecture détaillée et feuille de route
+tools/        préparation des planches (détourage, réduction)
+tests/        136 tests sur la logique pure
+docs/         architecture, graphismes, prompts des planches, feuille de route
 .github/      vérification et publication automatiques
 ```
 
-Détail des choix techniques : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — le détail des choix techniques
+- [docs/GRAPHISMES.md](docs/GRAPHISMES.md) — comment monter les graphismes au
+  niveau d'Ultima VII
+- [docs/PLANCHES.md](docs/PLANCHES.md) — la production des planches de dessins,
+  prompts conservés mot pour mot
+- [docs/ROADMAP.md](docs/ROADMAP.md) — ce qui est fait, et dans quel ordre
