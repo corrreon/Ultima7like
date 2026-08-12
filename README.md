@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 136 tests
+npm test         # 169 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
