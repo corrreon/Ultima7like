@@ -60,6 +60,11 @@ export class Actor extends GameObject {
    * conversations de recrutement.
    */
   inParty = false;
+  /**
+   * Pensees consecutives ou un compagnon n'a trouve aucun chemin vers son
+   * meneur. Au-dela d'un seuil, on le remet en formation d'autorite.
+   */
+  lostTicks = 0;
   schedule: ScheduleEntry[];
   conversationId?: string;
   home?: { tx: number; ty: number };

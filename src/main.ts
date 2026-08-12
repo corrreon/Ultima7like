@@ -137,8 +137,8 @@ class Game {
 
     this.ui.addLog(
       this.input.coarse
-        ? 'Stick : marcher · Toucher : prendre · Agir : utiliser · Notes : journal'
-        : 'Clic : marcher · Double-clic : utiliser · I : sac · J : journal · C : degainer · P : pause',
+        ? 'Stick : marcher · Agir : utiliser · Notes : journal · Menu : sauver et recommencer'
+        : 'Clic : marcher · Double-clic : utiliser · I : sac · J : journal · C : degainer · P : pause · M : menu',
     );
 
     // Les vrais dessins arrivent apres coup et remplacent les sprites
@@ -320,6 +320,7 @@ class Game {
       else if (code === 'KeyJ') this.toggleJournal();
       else if (code === 'KeyC') this.toggleCombat();
       else if (code === 'KeyP') this.togglePause();
+      else if (code === 'KeyM') this.ui.menu = !this.ui.menu;
       else if (code === 'Escape') this.ui.closeTop();
       else if (code === 'KeyE' || code === 'Space') this.actNearby();
       else if (code === 'F5') this.save();
@@ -440,6 +441,7 @@ class Game {
       if (action === 'bag') this.openBag();
       else if (action === 'journal') this.toggleJournal();
       else if (action === 'combat') this.toggleCombat();
+      else if (action === 'menu') this.ui.menu = !this.ui.menu;
       else if (action === 'close') this.ui.closeTop();
       else if (action === 'act') this.actNearby();
     }
@@ -530,6 +532,9 @@ class Game {
       case 'trade':
         this.handleTrade(hit.item, hit.buy);
         return true;
+      case 'menu':
+        this.handleMenu(hit.action);
+        return true;
       case 'modal':
         return true;
       default:
@@ -561,6 +566,13 @@ class Game {
         ? `Vous achetez ${item.name} pour ${resultat.prix} pieces.`
         : `Vous vendez ${item.name} pour ${resultat.prix} pieces.`,
     );
+  }
+
+  private handleMenu(action: 'save' | 'load' | 'restart' | 'close'): void {
+    this.ui.menu = false;
+    if (action === 'save') this.save();
+    else if (action === 'load') this.load();
+    else if (action === 'restart') this.restart();
   }
 
   /** Appui simple sur le monde : reposer, ramasser, ou marcher. */
@@ -876,6 +888,10 @@ loop.start();
   // deduire des pixels d'une capture d'ecran.
   getSprite,
   getPortrait,
+  // Le pathfinding, pour pouvoir demander « pourquoi ce PNJ ne bouge pas ? »
+  // depuis l'exterieur. C'est une question a laquelle on ne peut pas repondre
+  // en regardant l'ecran.
+  findPath,
   get world() {
     return game.world;
   },

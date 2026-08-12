@@ -5,6 +5,9 @@ import { populate } from '../src/data/npcs';
 import { ConversationState, getConversation } from '../src/script/conversation';
 import { VUE_DU_CAMP, applyEffect, journal, refreshWorldFlags } from '../src/script/quests';
 import { LANDMARKS } from '../src/data/town';
+import { GameClock } from '../src/core/clock';
+import { Rng } from '../src/core/rng';
+import { ScheduleAI } from '../src/sim/ai';
 import {
   MAX_COMPAGNONS,
   accorderCombat,
@@ -228,5 +231,73 @@ describe('recrutement par le dialogue', () => {
     });
     expect(done).toBe(false);
     expect(logs.join(' ')).toContain('complet');
+  });
+});
+
+describe('un compagnon en foret', () => {
+  /** Fait tourner l'IA comme la boucle de jeu, et rend l'ecart au meneur. */
+  function simuler(secondes: number, monde: ReturnType<typeof preparer>): number {
+    const { world, avatar, jehan, ai } = monde;
+    const dt = 1 / 30;
+    let pire = 0;
+    for (let n = 0; n < secondes * 30; n++) {
+      for (const actor of world.actors) {
+        if (actor !== avatar) ai.update(actor, dt);
+      }
+      pire = Math.max(pire, Math.max(Math.abs(jehan.tx - avatar.tx), Math.abs(jehan.ty - avatar.ty)));
+    }
+    return Math.max(Math.abs(jehan.tx - avatar.tx), Math.abs(jehan.ty - avatar.ty));
+  }
+
+  function preparer() {
+    const world = buildTown();
+    const { avatar, npcs } = populate(world);
+    const jehan = npcs.find((n) => n.displayName === 'Jehan')!;
+    recruter(jehan, avatar);
+    const ai = new ScheduleAI(world, new GameClock(10, 0), new Rng(4242));
+    ai.leader = avatar;
+    return { world, avatar, jehan, ai };
+  }
+
+  function poser(actor: { tx: number; ty: number; px: number; py: number; path: unknown[] }, tx: number, ty: number): void {
+    actor.tx = tx;
+    actor.ty = ty;
+    actor.px = tx;
+    actor.py = ty;
+    actor.path.length = 0;
+  }
+
+  it('rejoint son meneur au milieu des arbres', () => {
+    // Le bois du sud-ouest, sur le chemin du campement. La place en formation y
+    // tombe reguliercement sur un arbre : demandee sans tolerance, elle rendait
+    // un chemin vide, redemande a l'identique a chaque pensee, et le compagnon
+    // restait plante.
+    const monde = preparer();
+    poser(monde.avatar, 30, 72);
+    poser(monde.jehan, 38, 66);
+
+    const ecart = simuler(20, monde);
+    expect(ecart, 'le compagnon n\'a pas rejoint le meneur').toBeLessThanOrEqual(3);
+  });
+
+  it('revient meme de l\'autre bout de la carte', () => {
+    // Mesure : la traversee complete demande une trentaine de secondes de jeu,
+    // ce qui est le temps de marche et non un blocage. Ce qui compte est qu'il
+    // reprenne la route a chaque pensee au lieu de s'arreter en chemin.
+    const monde = preparer();
+    poser(monde.avatar, 30, 72);
+    poser(monde.jehan, 90, 6);
+
+    const ecart = simuler(45, monde);
+    expect(ecart, 'le compagnon est reste perdu').toBeLessThanOrEqual(3);
+  });
+
+  it('reste a portee sans coller au meneur', () => {
+    const monde = preparer();
+    poser(monde.avatar, 44, 44);
+    poser(monde.jehan, 44, 46);
+    const ecart = simuler(5, monde);
+    expect(ecart).toBeGreaterThanOrEqual(1);
+    expect(ecart).toBeLessThanOrEqual(3);
   });
 });

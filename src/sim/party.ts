@@ -23,11 +23,27 @@ import { combattant } from './combat';
  */
 export const MAX_COMPAGNONS = 2;
 
-/** Distance au-dela de laquelle un compagnon se remet en marche. */
-export const LAISSE = 2;
+/**
+ * Jeu accorde a un compagnon autour de sa place, avant qu'il ne se remette en
+ * marche.
+ *
+ * Une seule tuile. La place etant deja une tuile derriere le meneur, deux de
+ * jeu lui permettaient de stationner a trois tuiles — assez, en foret, pour
+ * rester plante derriere un arbre pendant qu'on s'eloigne, et donner
+ * l'impression qu'il est bloque alors qu'il se croit arrive.
+ */
+export const LAISSE = 1;
 
-/** Distance au-dela de laquelle il a decroche pour de bon et recalcule. */
-export const DISTANCE_PERDUE = 12;
+/**
+ * Pensees infructueuses avant de replacer d'autorite un compagnon perdu.
+ *
+ * Filet de securite, et rien de plus : sur la carte actuelle A* trouve
+ * toujours une route, meme d'un bout a l'autre — mesure, la traversee complete
+ * prend une trentaine de secondes de marche. Il existera pourtant des cartes ou
+ * le budget de recherche ne suffira pas, et un compagnon perdu pour de bon est
+ * pire qu'un compagnon replace hors du champ. L'original ne fait pas autrement.
+ */
+export const TENTATIVES_AVANT_RATTRAPAGE = 4;
 
 /** Compagnons actuels, dans l'ordre ou ils ont rejoint. */
 export function compagnons(acteurs: readonly Actor[]): Actor[] {

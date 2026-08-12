@@ -110,6 +110,8 @@ plus assez d'habitants nommés pour que recruter veuille dire quelque chose.
       compagnon qui marche devant bloque le passage, les acteurs étant solides
 - [x] Le groupe dégaine et rengaine avec le meneur ; un barde reste désarmé
 - [x] Jauge de vie par compagnon
+- [x] Menu tactile (sauver, charger, recommencer) : sans lui, une partie
+      bloquée l'était définitivement au doigt, faute de F5, F9 et F8
 - [x] Appartenance au groupe sauvegardée — un groupe qui se disperserait au
       rechargement obligerait à refaire toutes les conversations
 

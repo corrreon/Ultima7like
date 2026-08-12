@@ -38,12 +38,23 @@ export interface ContainerWindow {
 export type UiHit =
   | { kind: 'none' }
   | { kind: 'trade'; item: GameObject; buy: boolean }
+  | { kind: 'menu'; action: MenuAction }
   /** Clic consomme par un panneau modal, sans autre effet. */
   | { kind: 'modal' }
   | { kind: 'slot'; window: ContainerWindow; item: GameObject | null }
   | { kind: 'title'; window: ContainerWindow }
   | { kind: 'close'; window: ContainerWindow }
   | { kind: 'topic'; topic: Topic };
+
+/** Commandes du menu, celles qui n'ont pas de bouton propre. */
+export type MenuAction = 'save' | 'load' | 'restart' | 'close';
+
+const MENU_ENTRIES: Array<{ action: MenuAction; label: string }> = [
+  { action: 'save', label: 'Sauvegarder' },
+  { action: 'load', label: 'Charger la sauvegarde' },
+  { action: 'restart', label: 'Nouvelle partie' },
+  { action: 'close', label: 'Reprendre' },
+];
 
 export class Ui {
   readonly windows: ContainerWindow[] = [];
@@ -64,12 +75,15 @@ export class Ui {
   paused = false;
   /** Compagnons du groupe, pour la jauge de vie de chacun. */
   party: Actor[] = [];
+  /** Menu ouvert. Il porte ce que le clavier fait avec F5, F9 et F8. */
+  menu = false;
   /** Marchand en face de soi, s'il y a commerce en cours. */
   trade: { marchand: Actor; client: Actor } | null = null;
 
   private readonly log: string[] = [];
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
   private tradeRects: Array<{ x: number; y: number; w: number; h: number; item: GameObject; buy: boolean }> = [];
+  private menuRects: Array<{ x: number; y: number; w: number; h: number; action: MenuAction }> = [];
   private mouseX = 0;
   private mouseY = 0;
 
@@ -109,6 +123,10 @@ export class Ui {
   }
 
   closeTop(): boolean {
+    if (this.menu) {
+      this.menu = false;
+      return true;
+    }
     if (this.trade) {
       this.trade = null;
       return true;
@@ -153,6 +171,7 @@ export class Ui {
     if (this.conversation) this.drawConversation(ctx, width, height);
     if (this.journal) this.drawJournal(ctx, width, height);
     if (this.trade) this.drawTrade(ctx, width, height);
+    if (this.menu) this.drawMenu(ctx, width, height);
     if (this.held) this.drawHeld(ctx);
   }
 
@@ -571,6 +590,41 @@ export class Ui {
     ctx.fillText('Echap : fermer', x + 16, y + panelH - 12);
   }
 
+  /**
+   * Menu. Il n'existe que pour le tactile : au clavier ses trois commandes
+   * sont sur F5, F9 et F8, et une partie bloquee sur telephone l'etait
+   * definitivement faute de pouvoir en repartir.
+   */
+  private drawMenu(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const ligneH = 26;
+    const w = Math.min(width - 64, 260);
+    const panelH = 30 + MENU_ENTRIES.length * ligneH + 12;
+    const x = Math.round((width - w) / 2);
+    const y = Math.max(8, Math.round((height - panelH) / 2) - this.bottomInset);
+
+    ctx.fillStyle = 'rgba(20, 16, 11, 0.97)';
+    ctx.fillRect(x, y, w, panelH);
+    carvedFrame(ctx, x, y, w, panelH);
+
+    this.menuRects = [];
+    let ly = y + 30;
+    for (const entree of MENU_ENTRIES) {
+      const survole =
+        this.mouseX >= x + 8 &&
+        this.mouseX <= x + w - 8 &&
+        this.mouseY >= ly - 14 &&
+        this.mouseY <= ly + 8;
+      if (survole) {
+        ctx.fillStyle = 'rgba(226, 201, 138, 0.16)';
+        ctx.fillRect(x + 8, ly - 14, w - 16, 22);
+      }
+      ctx.fillStyle = survole ? '#f0dfa8' : '#ddd0b0';
+      ctx.fillText(entree.label, x + 18, ly);
+      this.menuRects.push({ x: x + 8, y: ly - 14, w: w - 16, h: 22, action: entree.action });
+      ly += ligneH;
+    }
+  }
+
   private drawHeld(ctx: CanvasRenderingContext2D): void {
     const item = this.held!;
     const sprite = getSprite(item.shapeId, item.frame);
@@ -591,6 +645,15 @@ export class Ui {
 
   /** Determine ce qui se trouve sous un point de l'ecran. */
   hitTest(x: number, y: number): UiHit {
+    if (this.menu) {
+      for (const rect of this.menuRects) {
+        if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
+          return { kind: 'menu', action: rect.action };
+        }
+      }
+      return { kind: 'modal' };
+    }
+
     if (this.trade) {
       for (const rect of this.tradeRects) {
         if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {

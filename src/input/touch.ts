@@ -19,7 +19,7 @@
  * d'inventaire.
  */
 
-export type TouchAction = 'act' | 'bag' | 'journal' | 'combat' | 'close';
+export type TouchAction = 'act' | 'bag' | 'journal' | 'combat' | 'menu' | 'close';
 
 interface Button {
   id: TouchAction;
@@ -68,6 +68,9 @@ export class TouchControls {
       // le pouce n'a pas de sens, alors que degainer est indispensable pour
       // que le combat soit jouable au doigt.
       { id: 'combat', label: 'Armes', x: bx, y: by - gap * 2, radius: r },
+      // Sans lui, une partie bloquee l'est definitivement au doigt : il n'y a
+      // pas de F5, F9 ni F8 sur un telephone.
+      { id: 'menu', label: 'Menu', x: bx - gap, y: by - gap * 2, radius: r },
     ];
   }
 

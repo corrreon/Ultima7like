@@ -4,7 +4,7 @@ import { Actor } from '../objects/actor';
 import type { World } from '../world/world';
 import { findPath } from './pathfind';
 import { currentEntry } from './schedule';
-import { DISTANCE_PERDUE, LAISSE, place } from './party';
+import { LAISSE, TENTATIVES_AVANT_RATTRAPAGE, place } from './party';
 import {
   CADENCE,
   PORTEE,
@@ -102,22 +102,72 @@ export class ScheduleAI {
     const ecart = Math.max(Math.abs(actor.tx - cible.tx), Math.abs(actor.ty - cible.ty));
     if (ecart <= LAISSE) {
       actor.path.length = 0;
+      actor.lostTicks = 0;
       actor.faceTowards(leader.px, leader.py);
       return;
     }
+    // On recalcule des que l'ecart se creuse, sans attendre que le chemin soit
+    // epuise : le meneur bouge en permanence, et un chemin calcule une fois
+    // vise la place qu'il occupait il y a plusieurs secondes. C'est ce qui
+    // faisait decrocher un compagnon de dix tuiles en terrain degage.
+    if (actor.path.length > 0 && ecart <= LAISSE + 2) return;
 
-    // Perdu de vue : on repart de la position du meneur plutot que de sa
-    // place, sinon un compagnon coince derriere un mur vise indefiniment une
-    // case qu'il ne peut pas atteindre.
-    const loin = ecart > DISTANCE_PERDUE;
-    const but = loin ? { tx: leader.tx, ty: leader.ty } : cible;
-    if (actor.path.length === 0 || loin) {
-      actor.path = findPath(this.world, { tx: actor.tx, ty: actor.ty }, but, {
-        actor,
-        tolerance: loin ? 1 : 0,
-        openDoors: true,
-      });
+    const ici = { tx: actor.tx, ty: actor.ty };
+    const options = { actor, tolerance: 1, openDoors: true } as const;
+
+    // La place en formation n'est **qu'une suggestion**. Sous les arbres elle
+    // tombe une fois sur deux sur une case impraticable, et la demander sans
+    // tolerance faisait rendre un chemin vide, redemande a l'identique a chaque
+    // pensee : le compagnon restait plante en foret jusqu'a ce que le meneur
+    // change de cap par hasard.
+    actor.path = findPath(this.world, ici, cible, options);
+    if (actor.path.length === 0) {
+      actor.path = findPath(this.world, ici, { tx: leader.tx, ty: leader.ty }, options);
     }
+
+    if (actor.path.length > 0) {
+      actor.lostTicks = 0;
+      return;
+    }
+
+    // Toujours rien : le meneur est hors d'atteinte, ou le budget de recherche
+    // n'a pas suffi. On compte, et au bout on le remet en formation d'autorite
+    // — l'original ne fait pas autrement, et un compagnon perdu pour de bon est
+    // pire qu'un compagnon replace hors du champ.
+    actor.lostTicks++;
+    if (actor.lostTicks >= TENTATIVES_AVANT_RATTRAPAGE && ecart > 6) {
+      const libre = this.freeTileNear(leader, actor);
+      if (libre) {
+        actor.tx = libre.tx;
+        actor.ty = libre.ty;
+        actor.px = libre.tx;
+        actor.py = libre.ty;
+        actor.path.length = 0;
+        actor.lostTicks = 0;
+      }
+    }
+  }
+
+  /**
+   * Case libre la plus proche du meneur, en spirale.
+   *
+   * On commence a une tuile pour que le rattrapage ressemble a « il vous a
+   * rejoint » et non a « il est apparu au milieu de vous ».
+   */
+  private freeTileNear(leader: Actor, actor: Actor): { tx: number; ty: number } | null {
+    for (let rayon = 1; rayon <= 3; rayon++) {
+      for (let dy = -rayon; dy <= rayon; dy++) {
+        for (let dx = -rayon; dx <= rayon; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rayon) continue;
+          const tx = leader.tx + dx;
+          const ty = leader.ty + dy;
+          if (this.world.isBlocked(tx, ty, true)) continue;
+          if (this.world.isOccupied(tx, ty, actor)) continue;
+          return { tx, ty };
+        }
+      }
+    }
+    return null;
   }
 
   /** Rang du compagnon dans le groupe, qui fixe sa place en formation. */
