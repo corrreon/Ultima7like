@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 107 tests
+npm test         # 123 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -216,12 +216,12 @@ src/core/     boucle, horloge, aléatoire déterministe, constantes
 src/world/    registre de shapes, chunks, requêtes spatiales
 src/objects/  GameObject (poids, volume, conteneurs) et Actor
 src/sim/      pathfinding A*, emplois du temps, IA, combat, groupe
-src/script/   usecode (comportements), dialogues et quêtes
+src/script/   usecode (comportements), dialogues, quêtes et commerce
 src/render/   art procédural, caméra, tri du peintre, lumière, interface
 src/input/    clavier, souris, commandes tactiles
 src/data/     la ville, les habitants, les dialogues, les planches
 public/       les planches de dessins
-tests/        107 tests sur la logique pure
+tests/        123 tests sur la logique pure
 docs/         architecture détaillée et feuille de route
 .github/      vérification et publication automatiques
 ```

@@ -13,7 +13,7 @@ defineConversation({
   id: 'mireille',
   greeting: 'Bienvenue au Chat Endormi ! Vous avez la mine de quelqu\'un qui a marche longtemps.',
   farewell: 'Revenez quand la nuit tombera, il y a toujours du feu ici.',
-  initial: ['nom', 'auberge', 'bourg', 'musique', 'adieu'],
+  initial: ['nom', 'auberge', 'bourg', 'musique', 'acheter', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -68,6 +68,12 @@ defineConversation({
       requires: ['luth_rendu'],
       once: true,
     },
+    {
+      id: 'acheter',
+      label: 'Acheter a boire ou a manger',
+      text: 'Servez-vous, je note tout. Le pain sort du four, la biere est d\'avant-hier — c\'est la meilleure.',
+      effect: 'commercer',
+    },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],
 });
@@ -79,7 +85,7 @@ defineConversation({
   // « luth » est present des le depart mais reste invisible tant que le
   // drapeau correspondant n'est pas pose : c'est le mecanisme qui fait qu'un
   // PNJ « sait » quelque chose seulement apres qu'on l'a appris ailleurs.
-  initial: ['nom', 'forge', 'luth', 'adieu'],
+  initial: ['nom', 'forge', 'luth', 'acheter', 'adieu'],
   topics: [
     {
       id: 'nom',
@@ -113,6 +119,12 @@ defineConversation({
       requires: ['connait_luth'],
       once: true,
       sets: ['sait_ou_est_luth'],
+    },
+    {
+      id: 'acheter',
+      label: 'Voir sa marchandise',
+      text: 'Ce qui est sur l\'etabli est a vendre. Ce qui est dans le coffre ne l\'est pas, je vous l\'ai dit.',
+      effect: 'commercer',
     },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],

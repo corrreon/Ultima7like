@@ -4,6 +4,7 @@ import type { GameObject } from '../objects/gameobject';
 import { getPortrait, getSprite } from './art';
 import type { ConversationState, Topic } from '../script/conversation';
 import type { QuestEntry } from '../script/quests';
+import { bourse, etal, prixAchat, prixVente, vendables } from '../script/commerce';
 
 /**
  * Interface : fenetres de contenants, journal et dialogues.
@@ -36,6 +37,9 @@ export interface ContainerWindow {
 
 export type UiHit =
   | { kind: 'none' }
+  | { kind: 'trade'; item: GameObject; buy: boolean }
+  /** Clic consomme par un panneau modal, sans autre effet. */
+  | { kind: 'modal' }
   | { kind: 'slot'; window: ContainerWindow; item: GameObject | null }
   | { kind: 'title'; window: ContainerWindow }
   | { kind: 'close'; window: ContainerWindow }
@@ -60,9 +64,12 @@ export class Ui {
   paused = false;
   /** Compagnons du groupe, pour la jauge de vie de chacun. */
   party: Actor[] = [];
+  /** Marchand en face de soi, s'il y a commerce en cours. */
+  trade: { marchand: Actor; client: Actor } | null = null;
 
   private readonly log: string[] = [];
   private topicRects: Array<{ x: number; y: number; w: number; h: number; topic: Topic }> = [];
+  private tradeRects: Array<{ x: number; y: number; w: number; h: number; item: GameObject; buy: boolean }> = [];
   private mouseX = 0;
   private mouseY = 0;
 
@@ -102,6 +109,10 @@ export class Ui {
   }
 
   closeTop(): boolean {
+    if (this.trade) {
+      this.trade = null;
+      return true;
+    }
     if (this.journal) {
       this.journal = null;
       return true;
@@ -141,6 +152,7 @@ export class Ui {
     for (const window of this.windows) this.drawWindow(ctx, window, width, height);
     if (this.conversation) this.drawConversation(ctx, width, height);
     if (this.journal) this.drawJournal(ctx, width, height);
+    if (this.trade) this.drawTrade(ctx, width, height);
     if (this.held) this.drawHeld(ctx);
   }
 
@@ -485,6 +497,80 @@ export class Ui {
     ctx.fillText('J ou Echap : fermer', x + 16, y + panelH - 12);
   }
 
+  /**
+   * Panneau de commerce : ce qu'il vend a gauche, ce qu'on peut vendre a
+   * droite, une bourse de chaque cote.
+   *
+   * Deux colonnes cliquables plutot que le glisser-deposer des fenetres
+   * d'inventaire : celles-ci reposent sur la manipulation directe, et laisser
+   * prendre un objet dans l'etal reviendrait a le voler. Un achat doit passer
+   * par un prix.
+   */
+  private drawTrade(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    const { marchand, client } = this.trade!;
+    const stock = etal(marchand);
+    const aVendre = stock ? stock.contents : [];
+    const aCeder = vendables(client);
+
+    const lignes = Math.max(aVendre.length, aCeder.length, 1);
+    const ligneH = 18;
+    const w = Math.min(width - 48, 560);
+    const panelH = 92 + lignes * ligneH;
+    const x = Math.round((width - w) / 2);
+    const y = Math.max(8, Math.round((height - panelH) / 2) - this.bottomInset);
+    const colonne = Math.floor((w - 36) / 2);
+
+    ctx.fillStyle = 'rgba(20, 16, 11, 0.96)';
+    ctx.fillRect(x, y, w, panelH);
+    carvedFrame(ctx, x, y, w, panelH);
+
+    ctx.fillStyle = '#e2c98a';
+    ctx.fillText(`${marchand.displayName} — ${bourse(marchand)} pieces`, x + 16, y + 24);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Vous — ${bourse(client)} pieces`, x + w - 16, y + 24);
+    ctx.textAlign = 'left';
+
+    ctx.fillStyle = '#8f8064';
+    ctx.fillText('Il vend', x + 16, y + 46);
+    ctx.fillText('Vous vendez', x + 20 + colonne, y + 46);
+
+    this.tradeRects = [];
+    const colonneRendue = (
+      items: GameObject[],
+      cx: number,
+      prix: (o: GameObject) => number,
+      buy: boolean,
+    ): void => {
+      let ly = y + 66;
+      for (const item of items) {
+        const label = `${item.describe()} — ${prix(item)}`;
+        const survole =
+          this.mouseX >= cx - 4 &&
+          this.mouseX <= cx + colonne &&
+          this.mouseY >= ly - 12 &&
+          this.mouseY <= ly + 4;
+        if (survole) {
+          ctx.fillStyle = 'rgba(226, 201, 138, 0.14)';
+          ctx.fillRect(cx - 4, ly - 12, colonne, 16);
+        }
+        ctx.fillStyle = survole ? '#f0dfa8' : '#ddd0b0';
+        ctx.fillText(label, cx, ly);
+        this.tradeRects.push({ x: cx - 4, y: ly - 12, w: colonne, h: 16, item, buy });
+        ly += ligneH;
+      }
+      if (items.length === 0) {
+        ctx.fillStyle = '#6c6048';
+        ctx.fillText('rien', cx, y + 66);
+      }
+    };
+
+    colonneRendue(aVendre, x + 16, prixAchat, true);
+    colonneRendue(aCeder, x + 20 + colonne, prixVente, false);
+
+    ctx.fillStyle = '#7a6a48';
+    ctx.fillText('Echap : fermer', x + 16, y + panelH - 12);
+  }
+
   private drawHeld(ctx: CanvasRenderingContext2D): void {
     const item = this.held!;
     const sprite = getSprite(item.shapeId, item.frame);
@@ -505,6 +591,18 @@ export class Ui {
 
   /** Determine ce qui se trouve sous un point de l'ecran. */
   hitTest(x: number, y: number): UiHit {
+    if (this.trade) {
+      for (const rect of this.tradeRects) {
+        if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
+          return { kind: 'trade', item: rect.item, buy: rect.buy };
+        }
+      }
+      // Le panneau avale tous les autres clics. Rendre `none` les laisserait
+      // filer jusqu'au monde, et l'Avatar se mettrait en marche pendant qu'on
+      // marchande — y compris en cliquant entre deux lignes de prix.
+      return { kind: 'modal' };
+    }
+
     if (this.conversation) {
       for (const rect of this.topicRects) {
         if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {

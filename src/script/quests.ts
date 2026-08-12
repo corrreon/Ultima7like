@@ -1,6 +1,7 @@
 import type { Actor } from '../objects/actor';
 import { GameObject } from '../objects/gameobject';
 import { congedier, groupePlein, peutRejoindre, recruter } from '../sim/party';
+import { estMarchand } from './commerce';
 
 /**
  * Quetes et effets de dialogue.
@@ -82,6 +83,8 @@ export interface EffectContext {
   log: (text: string) => void;
   /** Tous les acteurs du monde, pour ce qui touche au groupe. */
   acteurs: readonly Actor[];
+  /** Ouvre le panneau de commerce avec ce PNJ. */
+  commercer?: (marchand: Actor) => void;
 }
 
 /**
@@ -117,6 +120,12 @@ export function applyEffect(effect: string, ctx: EffectContext): boolean {
         ctx.log('Vous etes trop charge : les pieces tombent a vos pieds.');
       }
       ctx.log(`${ctx.npc.displayName} retrouve son luth et vous glisse 30 pieces.`);
+      return true;
+    }
+
+    case 'commercer': {
+      if (!estMarchand(ctx.npc) || !ctx.commercer) return false;
+      ctx.commercer(ctx.npc);
       return true;
     }
 

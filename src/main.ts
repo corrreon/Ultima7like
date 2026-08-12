@@ -23,6 +23,7 @@ import { ConversationState, getConversation } from './script/conversation';
 import { applyEffect, journal, refreshInventoryFlags } from './script/quests';
 import { CADENCE, PORTEE, cibleLaPlusProche, depouiller, distance, frapper } from './sim/combat';
 import { accorderCombat, compagnons, congedier } from './sim/party';
+import { MOTIFS, acheter, vendre } from './script/commerce';
 import { use, type UsecodeContext } from './script/usecode';
 import { buildTown } from './data/town';
 import { populate } from './data/npcs';
@@ -498,9 +499,40 @@ class Game {
       case 'topic':
         this.selectTopic(hit.topic.id);
         return true;
+      case 'trade':
+        this.handleTrade(hit.item, hit.buy);
+        return true;
+      case 'modal':
+        return true;
       default:
         return false;
     }
+  }
+
+  /**
+   * Achat ou vente d'une ligne du panneau de commerce.
+   *
+   * Le module de commerce refuse en donnant sa raison plutot qu'en echouant en
+   * silence : c'est cette raison que le joueur doit lire, pas un clic qui ne
+   * fait rien.
+   */
+  private handleTrade(item: GameObject, buy: boolean): void {
+    const trade = this.ui.trade;
+    if (!trade) return;
+
+    const resultat = buy
+      ? acheter(trade.client, trade.marchand, item)
+      : vendre(trade.client, trade.marchand, item);
+
+    if (!resultat.ok) {
+      this.ui.addLog(MOTIFS[resultat.raison]);
+      return;
+    }
+    this.ui.addLog(
+      buy
+        ? `Vous achetez ${item.name} pour ${resultat.prix} pieces.`
+        : `Vous vendez ${item.name} pour ${resultat.prix} pieces.`,
+    );
   }
 
   /** Appui simple sur le monde : reposer, ramasser, ou marcher. */
@@ -741,6 +773,12 @@ class Game {
       flags: this.flags,
       log: (text) => this.ui.addLog(text),
       acteurs: this.world.actors,
+      commercer: (marchand) => {
+        // Le commerce remplace le panneau de dialogue : les deux se posent au
+        // meme endroit de l'ecran, et on ne marchande pas en parlant.
+        this.ui.conversation = null;
+        this.ui.trade = { marchand, client: this.avatar };
+      },
     });
     if (!done) this.ui.addLog('Rien ne se passe.');
     else if (this.ui.journal) this.ui.journal = journal(this.flags);

@@ -3,6 +3,7 @@ import { GameObject } from '../objects/gameobject';
 import type { World } from '../world/world';
 import { craftsmanSchedule } from '../sim/schedule';
 import { LANDMARKS } from './town';
+import { ETAL } from '../script/commerce';
 import './dialogue';
 
 /**
@@ -17,6 +18,23 @@ import './dialogue';
 export interface Population {
   avatar: Actor;
   npcs: Actor[];
+}
+
+/**
+ * Donne a un PNJ une bourse et un etal.
+ *
+ * Le stock est un conteneur ordinaire dans son inventaire, et l'or un objet
+ * empilable : rien d'autre que du mobilier de jeu. C'est ce qui fait que
+ * voler un marchand, lui rendre son bien ou le depouiller apres l'avoir tue
+ * fonctionnent sans une ligne de code supplementaire.
+ */
+function approvisionner(marchand: Actor, or: number, marchandises: string[]): void {
+  marchand.add(new GameObject({ shape: 'gold', quantity: or }));
+  // Une besace, et non une caisse : une caisse pese dix-huit stones, que le
+  // marchand trainerait toute la journee sur son emploi du temps.
+  const stock = new GameObject({ shape: 'bag', name: ETAL });
+  marchand.add(stock);
+  for (const shape of marchandises) stock.add(new GameObject({ shape }));
 }
 
 export function populate(world: World): Population {
@@ -60,6 +78,7 @@ export function populate(world: World): Population {
     ],
   });
   mireille.add(new GameObject({ shape: 'key', quality: 1 }));
+  approvisionner(mireille, 90, ['bread', 'bread', 'ale', 'ale', 'ale', 'apple', 'apple', 'ham']);
   npcs.push(mireille);
 
   // Aldric : la journee type d'un artisan.
@@ -79,6 +98,7 @@ export function populate(world: World): Population {
     }),
   });
   aldric.add(new GameObject({ shape: 'hammer' }));
+  approvisionner(aldric, 140, ['dagger', 'sword', 'hammer', 'torch', 'key']);
   npcs.push(aldric);
 
   // Basile : leve tard, flane, joue le soir.
