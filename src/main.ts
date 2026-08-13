@@ -30,7 +30,7 @@ import { HEURE_REVEIL, reposer, soigner } from './sim/repos';
 import { SORTS, obstacle, payer, regenerer, sortParId, type Sort } from './sim/magie';
 import { MOTIFS, acheter, vendre } from './script/commerce';
 import { aUnUsage, use, type UsecodeContext } from './script/usecode';
-import { LANDMARKS, buildTown, reposerEnveloppe, WORLD_SIZE } from './data/town';
+import { LANDMARKS, PORTES, buildTown, reposerEnveloppe, WORLD_SIZE } from './data/town';
 import { deplacerPlan, exporterOrigines, tousLesPlans, validerPlans } from './data/plans';
 import { populate } from './data/npcs';
 import type { World } from './world/world';
@@ -53,6 +53,9 @@ const TILES_WIDE_PHONE = 13;
 
 /** Intervalle de sauvegarde automatique, en secondes reelles. */
 const AUTOSAVE_SECONDS = 30;
+
+/** Porte de la reserve du Chat Endormi. Voir la quete du meme nom. */
+const PORTE_RESERVE = { tx: 21, ty: 29 };
 
 /** Duree du sort de lumiere, en secondes reelles. */
 const DUREE_LUMIERE = 90;
@@ -407,7 +410,14 @@ class Game {
       this.ai.update(actor, dt);
     }
 
-    refreshWorldFlags(this.avatar, this.world.actors, LANDMARKS.camp, this.flags);
+    refreshWorldFlags(this.avatar, this.world.actors, LANDMARKS.camp, this.flags, {
+      portes: PORTES,
+      // La reserve compte comme ouverte des que sa serrure a saute, quel que
+      // soit le moyen : clef prise au chef de bande, ou sort d'Ouverture.
+      reserveOuverte: this.world
+        .objectsAt(PORTE_RESERVE.tx, PORTE_RESERVE.ty)
+        .some((o) => o.shape.door && o.quality === 0),
+    });
 
     this.autosaveTimer -= dt;
     if (this.autosaveTimer <= 0) this.save(true);

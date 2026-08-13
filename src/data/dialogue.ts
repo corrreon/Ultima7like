@@ -13,8 +13,31 @@ defineConversation({
   id: 'mireille',
   greeting: 'Bienvenue au Chat Endormi ! Vous avez la mine de quelqu\'un qui a marche longtemps.',
   farewell: 'Revenez quand la nuit tombera, il y a toujours du feu ici.',
-  initial: ['nom', 'auberge', 'bourg', 'musique', 'acheter', 'adieu'],
+  initial: ['nom', 'auberge', 'reserve', 'vivres', 'livrer_pain', 'bourg', 'musique', 'acheter', 'adieu'],
   topics: [
+    {
+      id: 'reserve',
+      label: 'La reserve',
+      text: 'Fermee, et la clef partie avec ceux qui m\'ont detroussee sur la route. Ouvrez-la comme vous voudrez : ce qu\'il y a dedans est a vous.',
+      sets: ['sait_reserve'],
+      once: true,
+    },
+    {
+      id: 'vivres',
+      label: 'La halle au grain',
+      text: 'Elle manque de pain pour la semaine. Trois miches portees la-bas, et je vous en donne trente pieces.',
+      sets: ['sait_vivres'],
+      once: true,
+    },
+    {
+      id: 'livrer_pain',
+      label: 'J\'ai vos trois miches',
+      text: 'Parfait. La halle tiendra la semaine.',
+      requires: ['sait_vivres'],
+      carries: 'bread',
+      effect: 'livrer:bread:3:30:vivres_livres',
+      once: true,
+    },
     {
       id: 'nom',
       label: 'Votre nom',
@@ -85,8 +108,24 @@ defineConversation({
   // « luth » est present des le depart mais reste invisible tant que le
   // drapeau correspondant n'est pas pose : c'est le mecanisme qui fait qu'un
   // PNJ « sait » quelque chose seulement apres qu'on l'a appris ailleurs.
-  initial: ['nom', 'forge', 'luth', 'acheter', 'adieu'],
+  initial: ['nom', 'forge', 'marteau_vole', 'rendre_marteau', 'luth', 'acheter', 'adieu'],
   topics: [
+    {
+      id: 'marteau_vole',
+      label: 'Votre marteau vole',
+      text: 'On me l\'a pris sur la route de l\'ouest, avec le reste. Un marteau de forge, ca ne se remplace pas en une semaine. Trente-cinq pieces a qui me le rapporte.',
+      sets: ['sait_marteau'],
+      once: true,
+    },
+    {
+      id: 'rendre_marteau',
+      label: 'Voici votre marteau',
+      text: 'C\'est bien lui. Je n\'avais rien perdu, notez : on me l\'avait pris.',
+      requires: ['sait_marteau'],
+      carries: 'hammer',
+      effect: 'livrer:hammer:1:35:marteau_rendu',
+      once: true,
+    },
     {
       id: 'nom',
       label: 'Votre nom',
@@ -144,8 +183,24 @@ defineConversation({
   // « rendre » ne s'affiche que si le joueur a vraiment le luth sur lui :
   // condition sur le monde, pas sur ce qui a ete dit. Elle disparait a la
   // seconde ou l'objet change de mains.
-  initial: ['nom', 'chanson', 'luth', 'rendre', 'ce_soir', 'suivre', 'rester', 'nuit', 'adieu'],
+  initial: ['nom', 'chanson', 'luth', 'rendre', 'ce_soir', 'soif', 'chope', 'suivre', 'rester', 'nuit', 'adieu'],
   topics: [
+    {
+      id: 'soif',
+      label: 'Vous avez soif ?',
+      text: 'Toujours, et surtout avant de chanter. Une chope, et vous aurez la meilleure place.',
+      requires: ['luth_rendu'],
+      once: true,
+    },
+    {
+      id: 'chope',
+      label: 'Voici une chope',
+      text: 'A votre sante. Ecoutez bien le troisieme couplet, il est de moi.',
+      requires: ['luth_rendu'],
+      carries: 'ale',
+      effect: 'livrer:ale:1:25:chanson_payee',
+      once: true,
+    },
     {
       id: 'nom',
       label: 'Votre nom',
@@ -263,6 +318,118 @@ defineConversation({
       requires: ['camp_nettoye'],
       once: true,
       effect: 'prime_brigands',
+    },
+    { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
+  ],
+});
+
+/**
+ * Ysoire, l'herboriste.
+ *
+ * Elle existe pour une raison mecanique autant que narrative : la magie
+ * consomme des reactifs, et sans quelqu'un qui en vende et en demande, les
+ * reactifs ne sont qu'une ligne d'inventaire. Elle donne deux quetes, dont une
+ * qui n'aboutit qu'une fois le campement nettoye.
+ */
+defineConversation({
+  id: 'ysoire',
+  greeting: 'Vous sentez le soufre et la route. Vous lancez, ou vous transportez ?',
+  farewell: 'Que vos racines soient seches.',
+  initial: ['nom', 'herbes', 'livrer_herbes', 'perle', 'rendre_perle', 'acheter', 'adieu'],
+  topics: [
+    {
+      id: 'nom',
+      label: 'Votre nom',
+      text: 'Ysoire. Je tiens l\'echoppe d\'herbes, et je suis la seule du bourg a savoir a quoi elles servent.',
+      once: true,
+    },
+    {
+      id: 'herbes',
+      label: 'Vos herbes',
+      text: 'Je manque de ginseng. Trois racines, et je vous en donne quarante pieces — j\'en ai besoin avant l\'hiver.',
+      sets: ['sait_herbes'],
+      once: true,
+    },
+    {
+      id: 'livrer_herbes',
+      label: 'Voici votre ginseng',
+      text: 'Trois racines, comme convenu. Vous savez ou me trouver, desormais.',
+      requires: ['sait_herbes'],
+      carries: 'ginseng',
+      effect: 'livrer:ginseng:3:40:herbes_livrees',
+      once: true,
+    },
+    {
+      id: 'perle',
+      label: 'Une perle noire',
+      text: 'On m\'a pris une perle noire sur la route de l\'ouest. Le chef de cette bande la porte, j\'en mettrais ma main au feu.',
+      requires: ['sait_brigands'],
+      sets: ['sait_perle'],
+      once: true,
+    },
+    {
+      id: 'rendre_perle',
+      label: 'J\'ai votre perle',
+      text: 'C\'est bien elle. Cinquante pieces, et ma reconnaissance — qui vaut plus cher.',
+      requires: ['sait_perle'],
+      carries: 'perle',
+      effect: 'livrer:perle:1:50:perle_rendue',
+      once: true,
+    },
+    { id: 'acheter', label: 'Marchander', text: 'Voyons ce que j\'ai.', effect: 'commercer' },
+    { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
+  ],
+});
+
+/**
+ * Garin, capitaine des portes.
+ *
+ * Le rempart a change la ville : il a des portes, donc quelqu'un qui en
+ * repond. Ses deux quetes servent a faire parcourir l'enceinte — une ville
+ * fortifiee qu'on ne longe jamais n'est qu'un decor de fond.
+ */
+defineConversation({
+  id: 'garin',
+  greeting: 'Capitaine Garin. Les portes tiennent, et j\'entends que cela dure.',
+  farewell: 'Restez du bon cote des murs a la nuit.',
+  initial: ['nom', 'rondes', 'rapport', 'lanternes', 'livrer_torches', 'adieu'],
+  topics: [
+    {
+      id: 'nom',
+      label: 'Votre nom',
+      text: 'Garin. Je commande les deux portes, ce qui veut dire que je commande deux hommes.',
+      once: true,
+    },
+    {
+      id: 'rondes',
+      label: 'Les portes',
+      text: 'Faites-en le tour, sud et est, et dites-moi si les battants tiennent. Je paie ceux qui marchent a ma place.',
+      sets: ['sait_rondes'],
+      once: true,
+    },
+    {
+      id: 'rapport',
+      label: 'La ronde est faite',
+      text: 'Les deux debout ? Voila qui me repose. Trente pieces.',
+      requires: ['porte_sud_vue', 'porte_est_vue'],
+      effect: 'payer:30:rondes_faites',
+      once: true,
+    },
+    {
+      id: 'lanternes',
+      label: 'Vos guetteurs',
+      text: 'Ils veillent sans lumiere. Deux torches, et je vous en donne trente pieces.',
+      sets: ['sait_lanternes'],
+      once: true,
+    },
+    {
+      id: 'livrer_torches',
+      label: 'Voici deux torches',
+      text: 'Mes hommes verront enfin qui frappe a la porte.',
+      requires: ['sait_lanternes'],
+      carries: 'torch',
+      effect: 'livrer:torch:2:30:lanternes_faites',
+      once: true,
     },
     { id: 'adieu', label: 'Prendre conge', text: '', ends: true },
   ],

@@ -58,6 +58,88 @@ export const QUESTS: QuestDef[] = [
       { flag: 'camp_nettoye', text: 'La route est libre. Jehan a de quoi me remercier.' },
     ],
   },
+  {
+    id: 'marteau',
+    title: 'Le marteau d\'Aldric',
+    startFlag: 'sait_marteau',
+    doneFlag: 'marteau_rendu',
+    steps: [
+      { flag: 'sait_marteau', text: 'Aldric s\'est fait prendre son marteau de forge sur la route.' },
+      { flag: 'marteau_rendu', text: 'Rendu. Il pretend qu\'il ne l\'avait pas perdu.' },
+    ],
+  },
+  {
+    id: 'reserve',
+    title: 'La reserve de Mireille',
+    startFlag: 'sait_reserve',
+    doneFlag: 'reserve_ouverte',
+    steps: [
+      { flag: 'sait_reserve', text: 'La reserve de la taverne est fermee et la clef a disparu.' },
+      { flag: 'reserve_ouverte', text: 'La porte est ouverte. Clef, crochet ou sortilege : elle n\'a rien demande.' },
+    ],
+  },
+  {
+    id: 'herbes',
+    title: 'Les herbes d\'Ysoire',
+    startFlag: 'sait_herbes',
+    doneFlag: 'herbes_livrees',
+    steps: [
+      { flag: 'sait_herbes', text: 'Ysoire manque de ginseng et en achete trois racines.' },
+      { flag: 'herbes_livrees', text: 'Livrees. Elle dit que je saurai ou la trouver.' },
+    ],
+  },
+  {
+    id: 'vivres',
+    title: 'Les vivres de la halle',
+    startFlag: 'sait_vivres',
+    doneFlag: 'vivres_livres',
+    steps: [
+      { flag: 'sait_vivres', text: 'La halle au grain manque de pain pour la semaine.' },
+      { flag: 'vivres_livres', text: 'Trois miches portees a la halle.' },
+    ],
+  },
+  {
+    id: 'rondes',
+    title: 'La ronde des portes',
+    startFlag: 'sait_rondes',
+    doneFlag: 'rondes_faites',
+    steps: [
+      { flag: 'sait_rondes', text: 'Garin veut savoir si les deux portes tiennent encore.' },
+      { flag: 'porte_sud_vue', text: 'Porte sud : debout.' },
+      { flag: 'porte_est_vue', text: 'Porte est : debout aussi.' },
+      { flag: 'rondes_faites', text: 'Rapporte a Garin. Il paie sans discuter.' },
+    ],
+  },
+  {
+    id: 'biere',
+    title: 'La chanson du soir',
+    startFlag: 'luth_rendu',
+    doneFlag: 'chanson_payee',
+    steps: [
+      { flag: 'luth_rendu', text: 'Basile joue ce soir, mais il a la gorge seche.' },
+      { flag: 'chanson_payee', text: 'Une chope portee au barde. La salle etait pleine.' },
+    ],
+  },
+  {
+    id: 'perle',
+    title: 'La perle du chef',
+    startFlag: 'sait_perle',
+    doneFlag: 'perle_rendue',
+    steps: [
+      { flag: 'sait_perle', text: 'Ysoire dit que le chef de bande portait une perle noire volee.' },
+      { flag: 'perle_rendue', text: 'Reprise sur son corps et rendue.' },
+    ],
+  },
+  {
+    id: 'lanterne',
+    title: 'Les lanternes de la place',
+    startFlag: 'sait_lanternes',
+    doneFlag: 'lanternes_faites',
+    steps: [
+      { flag: 'sait_lanternes', text: 'Garin voudrait deux torches pour les guetteurs.' },
+      { flag: 'lanternes_faites', text: 'Deux torches livrees au corps de garde.' },
+    ],
+  },
 ];
 
 export interface QuestEntry {
@@ -103,6 +185,60 @@ export interface EffectContext {
 }
 
 /**
+ * Remet des objets a un PNJ contre de l'or, et pose un drapeau.
+ *
+ * Rien n'est preleve si le compte n'y est pas : une livraison a moitie faite
+ * laisserait le joueur sans ses objets et sans sa quete.
+ */
+function livrer(effect: string, ctx: EffectContext): boolean {
+  const [, shape, nombreTexte, orTexte, drapeau] = effect.split(':');
+  const nombre = Number(nombreTexte);
+  const or = Number(orTexte);
+  if (!shape || !drapeau || !Number.isFinite(nombre)) return false;
+  if (ctx.flags.has(drapeau)) return false;
+
+  // On collecte d'abord, on detache ensuite : compter puis prelever en deux
+  // temps evite de vider a moitie un inventaire qui n'avait pas le compte.
+  const pris: GameObject[] = [];
+  let reste = nombre;
+  while (reste > 0) {
+    const trouve = ctx.avatar.findDeep((o) => o.shapeId === shape && !pris.includes(o));
+    if (!trouve) return false;
+    pris.push(trouve);
+    reste -= Math.max(1, trouve.quantity);
+  }
+
+  for (const objet of pris) {
+    objet.detach();
+    ctx.npc.add(objet);
+  }
+  ctx.flags.add(drapeau);
+
+  if (or > 0) {
+    payerOr(or, ctx);
+    ctx.log(`${ctx.npc.displayName} vous remet ${or} pieces.`);
+  }
+  return true;
+}
+
+/**
+ * Verse une somme dans la bourse du joueur.
+ *
+ * `stow` et non `add` : l'or verse doit **rejoindre le tas deja porte**, comme
+ * celui qu'on ramasse au sol. Un `add` nu creait une seconde pile a chaque
+ * recompense, et la bourse finissait en une dizaine de tas dont le total ne se
+ * lisait plus nulle part.
+ */
+function payerOr(or: number, ctx: EffectContext): void {
+  const paie = new GameObject({ shape: 'gold', quantity: or });
+  if (!ctx.avatar.stow(paie)) {
+    paie.tx = ctx.avatar.tx;
+    paie.ty = ctx.avatar.ty;
+    ctx.log('Vous etes trop charge : les pieces tombent a vos pieds.');
+  }
+}
+
+/**
  * Applique l'effet attache a un sujet de conversation.
  *
  * Retourne false si l'effet n'a pas pu aboutir — le luth introuvable, par
@@ -110,6 +246,27 @@ export interface EffectContext {
  * poser le drapeau, plutot que de declarer une quete achevee dans le vide.
  */
 export function applyEffect(effect: string, ctx: EffectContext): boolean {
+  // Effet parametre : `livrer:shape:nombre:or:drapeau`.
+  //
+  // Huit des dix quetes se ramenent au meme geste — apporter quelque chose a
+  // quelqu'un contre une recompense. Un `case` par quete aurait duplique huit
+  // fois le meme code, et surtout aurait fait de chaque nouvelle quete une
+  // modification du moteur plutot qu'une ligne de dialogue.
+  if (effect.startsWith('livrer:')) return livrer(effect, ctx);
+  // `payer:or:drapeau` — recompenser sans rien prendre, pour les quetes ou le
+  // service rendu n'est pas un objet.
+  if (effect.startsWith('payer:')) {
+    const [, orTexte, drapeau] = effect.split(':');
+    if (!drapeau || ctx.flags.has(drapeau)) return false;
+    ctx.flags.add(drapeau);
+    const or = Number(orTexte);
+    if (or > 0) {
+      payerOr(or, ctx);
+      ctx.log(`${ctx.npc.displayName} vous remet ${or} pieces.`);
+    }
+    return true;
+  }
+
   switch (effect) {
     case 'quete_luth':
       ctx.flags.add('quete_luth_active');
@@ -203,7 +360,29 @@ export function refreshWorldFlags(
   acteurs: readonly Actor[],
   camp: { tx: number; ty: number },
   flags: Set<string>,
+  repere: {
+    /** Les portes de la ville, dans l'ordre : sud, sud, est, est. */
+    portes?: ReadonlyArray<{ tx: number; ty: number }>;
+    /** La porte de la reserve est-elle ouverte ? */
+    reserveOuverte?: boolean;
+  } = {},
 ): void {
+  const portes = repere.portes ?? [];
+  // La ronde des portes : elle se valide en marchant, pas en parlant. Une
+  // quete de patrouille qu'on pourrait boucler depuis la place ne ferait
+  // longer le rempart a personne.
+  const pres = (p: { tx: number; ty: number }): boolean =>
+    Math.max(Math.abs(avatar.tx - p.tx), Math.abs(avatar.ty - p.ty)) <= 3;
+  if (flags.has('sait_rondes')) {
+    if (!flags.has('porte_sud_vue') && portes.slice(0, 2).some(pres)) {
+      flags.add('porte_sud_vue');
+    }
+    if (!flags.has('porte_est_vue') && portes.slice(2).some(pres)) {
+      flags.add('porte_est_vue');
+    }
+  }
+
+  if (repere.reserveOuverte) flags.add('reserve_ouverte');
   if (!flags.has('luth_en_main') && !flags.has('luth_rendu')) {
     if (avatar.findDeep((o) => o.shapeId === 'lute')) flags.add('luth_en_main');
   }

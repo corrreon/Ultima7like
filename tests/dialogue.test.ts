@@ -76,3 +76,19 @@ describe('arbres de dialogue', () => {
     }
   });
 });
+
+describe('identifiants de sujets', () => {
+  it('sont uniques dans chaque conversation', () => {
+    // Deux sujets de meme identifiant se retrouvent tous deux dans la liste, et
+    // toute recherche par identifiant prend le premier : le second devient
+    // inatteignable sans que rien ne le signale. C'est arrive en greffant une
+    // quete sur un PNJ qui avait deja un sujet du meme nom.
+    for (const conv of allConversations()) {
+      const vus = new Set<string>();
+      for (const topic of conv.topics) {
+        expect(vus.has(topic.id), `${conv.id} : deux sujets « ${topic.id} »`).toBe(false);
+        vus.add(topic.id);
+      }
+    }
+  });
+});

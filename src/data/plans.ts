@@ -150,6 +150,23 @@ export const BATIMENTS_PUBLICS: Plan[] = [
     ],
   },
   {
+    // La reserve de la taverne. Sa porte est verrouillee, et la clef n'est pas
+    // en ville : c'est le premier endroit du jeu ou une serrure veut dire
+    // quelque chose — on y entre par la clef prise au chef de bande, ou par le
+    // sort d'Ouverture.
+    name: 'Reserve du Chat Endormi',
+    ox: 18,
+    oy: 24,
+    rows: [
+      '######',
+      '#=C==#',
+      '#=B==#',
+      '#===k#',
+      '#=t==#',
+      '###D##',
+    ],
+  },
+  {
     // Plan en L. Une case blanche n'appartient pas au batiment : c'est ce qui
     // libere la silhouette du bourg des quatre rectangles de depart. La
     // toiture s'adapte toute seule, chaque colonne ayant son propre faitage.

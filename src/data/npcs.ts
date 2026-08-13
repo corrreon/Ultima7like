@@ -2,7 +2,7 @@ import { Actor } from '../objects/actor';
 import { GameObject } from '../objects/gameobject';
 import type { World } from '../world/world';
 import { craftsmanSchedule } from '../sim/schedule';
-import { LANDMARKS, LOGIS_PREFIX } from './town';
+import { LANDMARKS, LOGIS_PREFIX, PORTES } from './town';
 import { ETAL } from '../script/commerce';
 import { Rng } from '../core/rng';
 import { habitantsQuelconques } from './habitants';
@@ -166,6 +166,49 @@ export function populate(world: World): Population {
   jehan.add(new GameObject({ shape: 'sword' }));
   npcs.push(jehan);
 
+  // Ysoire, herboriste. Elle vend les reactifs et en demande : sans elle, la
+  // magie serait une reserve qui s'epuise sans jamais se refaire.
+  const ysoire = new Actor({
+    shape: 'townswoman',
+    displayName: 'Ysoire',
+    tx: L.square.tx + 4,
+    ty: L.square.ty + 2,
+    conversationId: 'ysoire',
+    speed: 2.5,
+    maxHp: 35,
+    schedule: [
+      { hour: 0, activity: 'sleep', tx: L.square.tx + 6, ty: L.square.ty + 4 },
+      { hour: 7, activity: 'work', tx: L.square.tx + 4, ty: L.square.ty + 2, radius: 2 },
+      { hour: 13, activity: 'eat', ...L.tavernTableB },
+      { hour: 14, activity: 'work', tx: L.square.tx + 4, ty: L.square.ty + 2, radius: 2 },
+      { hour: 21, activity: 'sleep', tx: L.square.tx + 6, ty: L.square.ty + 4 },
+    ],
+  });
+  approvisionner(ysoire, 120, ['ginseng', 'ginseng', 'soufre', 'soufre', 'perle', 'racine', 'spellbook']);
+  npcs.push(ysoire);
+
+  // Garin, capitaine des portes. Sa ronde va d'une porte a l'autre : c'est ce
+  // qui donne au rempart quelqu'un qui le parcourt.
+  const garin = new Actor({
+    shape: 'guard',
+    displayName: 'Garin',
+    tx: L.crossroads.tx,
+    ty: L.crossroads.ty + 2,
+    conversationId: 'garin',
+    speed: 3.0,
+    maxHp: 75,
+    schedule: [
+      { hour: 0, activity: 'patrol', tx: PORTES[0].tx, ty: PORTES[0].ty - 3 },
+      { hour: 3, activity: 'sleep', ...L.guardBed },
+      { hour: 8, activity: 'wander', tx: PORTES[2].tx - 3, ty: PORTES[2].ty, radius: 3 },
+      { hour: 13, activity: 'eat', ...L.guardTable },
+      { hour: 15, activity: 'wander', tx: PORTES[0].tx, ty: PORTES[0].ty - 4, radius: 3 },
+      { hour: 20, activity: 'patrol', ...L.crossroads },
+    ],
+  });
+  garin.add(new GameObject({ shape: 'sword' }));
+  npcs.push(garin);
+
   // Brigands. Ils n'ont pas d'emploi du temps : leur seule occupation est de
   // flaner autour de leur feu, et de tomber sur quiconque s'en approche.
   //
@@ -189,6 +232,9 @@ export function populate(world: World): Population {
       schedule: [{ hour: 0, activity: 'wander', tx: L.camp.tx + dx, ty: L.camp.ty + dy, radius: 2 }],
     });
     brigand.add(new GameObject({ shape: nom === 'Chef de bande' ? 'sword' : 'hammer' }));
+    // La clef de la reserve, sur le chef : c'est ce qui relie le campement a
+    // la taverne, et fait d'un combat la solution d'une porte fermee.
+    if (nom === 'Chef de bande') brigand.add(new GameObject({ shape: 'key', quality: 5 }));
     brigand.add(new GameObject({ shape: 'gold', quantity: nom === 'Chef de bande' ? 40 : 12 }));
     npcs.push(brigand);
   }

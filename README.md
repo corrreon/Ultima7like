@@ -7,7 +7,7 @@ pour que la réponse soit vérifiable plutôt que théorique.
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # 176 tests
+npm test         # 184 tests
 ```
 
 Une version jouable est publiée automatiquement à chaque poussée sur `main` :
@@ -211,9 +211,9 @@ projet, devant les tests unitaires.
 
 ## 5. Ce que contient le prototype
 
-Un bourg, Valmoret : cinq bâtiments, des routes, un étang, quatre habitants qui
-vivent leur journée — et, au sud-ouest, un campement de brigands au bout d'un
-sentier.
+Une ville fortifiée, Valmoret : une enceinte à deux portes, six bâtiments
+publics, vingt logis, des routes, et quarante-six habitants qui vivent leur
+journée — plus, hors les murs, un campement de brigands au bout d'un sentier.
 
 - **Objets** — poids en 1/10 de stone comme dans l'original, volume, conteneurs
   imbriqués sans limite de profondeur, empilement, surcharge qui ralentit.
@@ -224,8 +224,9 @@ sentier.
 - **Dialogues** — sujets cliquables, drapeaux partagés entre personnages : ce
   que Mireille vous apprend débloque un sujet chez Aldric, dont la réponse
   débloque un sujet chez Basile.
-- **Quêtes** — deux, avec un journal (`J`) déduit des drapeaux et non d'un état
-  parallèle : rendre son luth à Basile, nettoyer le campement pour Jehan.
+- **Quêtes** — dix, avec un journal (`J`) déduit des drapeaux et non d'un état
+  parallèle. Elles se recoupent : la clef de la réserve de Mireille est sur le
+  chef de bande, et la perle qu'Ysoire réclame aussi.
 - **Combat** — temps réel avec pause (`P`), comme l'original ; camps portés par
   la shape, arme choisie dans l'inventaire, butin qui tombe au sol.
 - **Groupe** — deux compagnons au maximum, recrutés par le dialogue, qui suivent

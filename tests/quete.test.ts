@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildTown } from '../src/data/town';
+import { LANDMARKS, PORTES, buildTown } from '../src/data/town';
 import { populate } from '../src/data/npcs';
-import { ConversationState, getConversation } from '../src/script/conversation';
-import { applyEffect, journal } from '../src/script/quests';
+import { ConversationState, allConversations, getConversation } from '../src/script/conversation';
+import { QUESTS, applyEffect, journal, refreshWorldFlags } from '../src/script/quests';
 import type { Actor } from '../src/objects/actor';
-import type { GameObject } from '../src/objects/gameobject';
+import { GameObject } from '../src/objects/gameobject';
 
 /**
  * Traversee complete de la quete du luth.
@@ -150,3 +150,121 @@ function compterOr(actor: Actor): number {
   parcourir(actor);
   return total;
 }
+
+describe('les dix quetes', () => {
+  it('sont toutes atteignables par le dialogue', () => {
+    // Le mode de panne le plus couteux du jeu : une quete entre au journal,
+    // et rien nulle part ne peut poser le drapeau qui la termine. Rien ne le
+    // signale — le joueur cherche.
+    const poses = new Set<string>();
+    for (const conv of allConversations()) {
+      for (const topic of conv.topics) {
+        for (const flag of topic.sets ?? []) poses.add(flag);
+        // Les effets parametres posent leur drapeau en dernier champ.
+        const effet = topic.effect?.split(':');
+        if (effet && (effet[0] === 'livrer' || effet[0] === 'payer')) {
+          poses.add(effet[effet.length - 1]!);
+        }
+      }
+    }
+    // Les drapeaux poses par le monde et non par une replique.
+    for (const flag of [
+      'luth_en_main', 'camp_trouve', 'camp_nettoye', 'luth_rendu',
+      'porte_sud_vue', 'porte_est_vue', 'reserve_ouverte', 'quete_luth_active',
+      'compagnon_jehan',
+    ]) poses.add(flag);
+
+    expect(QUESTS).toHaveLength(10);
+    for (const quete of QUESTS) {
+      expect(poses.has(quete.startFlag), `${quete.id} : rien ne la commence`).toBe(true);
+      expect(poses.has(quete.doneFlag), `${quete.id} : rien ne la termine`).toBe(true);
+      for (const etape of quete.steps) {
+        expect(poses.has(etape.flag), `${quete.id} : etape « ${etape.flag} » inatteignable`).toBe(true);
+      }
+    }
+  });
+
+  it('livre contre recompense, et ne prend rien si le compte n\'y est pas', () => {
+    const world = buildTown();
+    const { avatar, npcs } = populate(world);
+    const flags = new Set<string>();
+    const ysoire = npcs.find((n) => n.conversationId === 'ysoire')!;
+    const ctx = { avatar, npc: ysoire, flags, acteurs: world.actors, log: () => {} };
+
+    // L'Avatar part avec un sachet de reactifs : on le vide d'abord, sinon le
+    // compte est deja fait et le test ne verifie rien.
+    for (;;) {
+      const deja = avatar.findDeep((o) => o.shapeId === 'ginseng');
+      if (!deja) break;
+      deja.detach();
+    }
+
+    // Deux racines sur trois : rien ne doit bouger.
+    avatar.add(new GameObject({ shape: 'ginseng', quantity: 2 }));
+    expect(applyEffect('livrer:ginseng:3:40:herbes_livrees', ctx)).toBe(false);
+    expect(flags.has('herbes_livrees')).toBe(false);
+    expect(avatar.findDeep((o) => o.shapeId === 'ginseng')).not.toBeNull();
+
+    // La troisieme, et la livraison passe.
+    avatar.add(new GameObject({ shape: 'ginseng', quantity: 1 }));
+    const totalOr = (): number => {
+      let t = 0;
+      const parcours = (o: GameObject): void => {
+        for (const c of o.contents) {
+          if (c.shapeId === 'gold') t += c.quantity;
+          parcours(c);
+        }
+      };
+      parcours(avatar);
+      return t;
+    };
+    const orAvant = totalOr();
+    expect(applyEffect('livrer:ginseng:3:40:herbes_livrees', ctx)).toBe(true);
+    expect(flags.has('herbes_livrees')).toBe(true);
+    expect(ysoire.findDeep((o) => o.shapeId === 'ginseng')).not.toBeNull();
+    expect(totalOr()).toBe(orAvant + 40);
+    // Un seul tas : la recompense rejoint la bourse au lieu d'en ouvrir une
+    // deuxieme.
+    let tas = 0;
+    const compter = (o: GameObject): void => {
+      for (const c of o.contents) {
+        if (c.shapeId === 'gold') tas++;
+        compter(c);
+      }
+    };
+    compter(avatar);
+    expect(tas).toBe(1);
+
+    // Et jamais deux fois.
+    expect(applyEffect('livrer:ginseng:3:40:herbes_livrees', ctx)).toBe(false);
+  });
+
+  it('ne valide la ronde qu\'en marchant jusqu\'aux portes', () => {
+    const world = buildTown();
+    const { avatar } = populate(world);
+    const flags = new Set<string>(['sait_rondes']);
+    const repere = { portes: PORTES, reserveOuverte: false };
+
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags, repere);
+    expect(flags.has('porte_sud_vue')).toBe(false);
+
+    avatar.tx = PORTES[0].tx;
+    avatar.ty = PORTES[0].ty - 2;
+    refreshWorldFlags(avatar, world.actors, LANDMARKS.camp, flags, repere);
+    expect(flags.has('porte_sud_vue')).toBe(true);
+    expect(flags.has('porte_est_vue')).toBe(false);
+  });
+
+  it('ouvre la reserve par la clef du chef de bande', () => {
+    // Qualite 5 : aucune clef du bourg ne convient, celle du chef si. C'est ce
+    // qui relie le campement a la taverne.
+    const world = buildTown();
+    const { npcs } = populate(world);
+    const porte = world.objectsAt(21, 29).find((o) => o.shape.door)!;
+    expect(porte.quality).toBe(5);
+
+    const chef = npcs.find((n) => n.displayName === 'Chef de bande')!;
+    const clef = chef.findItem('key');
+    expect(clef?.quality).toBe(5);
+  });
+});

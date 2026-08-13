@@ -415,6 +415,21 @@ function fillContainers(world: World): void {
     tavernChest.add(pouch);
   }
 
+  // La serrure de la reserve. Qualite 5 : aucune clef du bourg ne l'ouvre —
+  // celle qui convient est sur le chef de bande, et le sort d'Ouverture est
+  // l'autre reponse. Une serrure dont la clef est a portee de main n'est pas
+  // une serrure.
+  const porteReserve = at(21, 29, 'door');
+  if (porteReserve) {
+    porteReserve.quality = 5;
+    porteReserve.frame = 0;
+  }
+  const coffreReserve = at(20, 25, 'chest');
+  if (coffreReserve) {
+    coffreReserve.add(new GameObject({ shape: 'gold', quantity: 55 }));
+    coffreReserve.add(new GameObject({ shape: 'perle', quantity: 2 }));
+  }
+
   const tavernBarrel = at(36, 29, 'barrel');
   if (tavernBarrel) {
     for (let i = 0; i < 4; i++) tavernBarrel.add(new GameObject({ shape: 'ale' }));
