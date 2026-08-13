@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { World } from '../src/world/world';
 import { GameObject } from '../src/objects/gameobject';
 import { CHUNK_SIZE } from '../src/core/constants';
-import { buildTown, LANDMARKS, LOGIS_PREFIX, WORLD_SIZE } from '../src/data/town';
+import { buildTown, LANDMARKS, LOGIS_PREFIX, PORTES, REMPART, WORLD_SIZE } from '../src/data/town';
+import { findPath } from '../src/sim/pathfind';
 
 describe('monde et chunks', () => {
   it('range les objets dans le chunk correspondant', () => {
@@ -119,15 +120,56 @@ describe('carte de Valmoret', () => {
     expect(noms).toContain('Taverne du Chat Endormi');
     expect(noms).toContain('Halle au grain');
 
-    // Huit logis, deux lits chacun : de quoi coucher les seize habitants
+    // Vingt logis, deux lits chacun : de quoi coucher les quarante habitants
     // quelconques. Un habitant sans lit dormirait dans un champ.
     const logis = world.regions.filter((r) => r.name.startsWith(LOGIS_PREFIX));
-    expect(logis).toHaveLength(8);
+    expect(logis).toHaveLength(20);
 
     const lits = [...world.allObjects()].filter(
       (o) => o.shapeId === 'bed' && world.regionAt(o.tx, o.ty)?.name.startsWith(LOGIS_PREFIX),
     );
-    expect(lits).toHaveLength(16);
+    expect(lits).toHaveLength(40);
+  });
+
+  it('ferme la ville, sauf aux portes', () => {
+    // Une enceinte percee quelque part n'est plus une enceinte : on entre par
+    // la breche, les portes ne servent a rien, et le rempart devient un decor.
+    const breches: string[] = [];
+    for (let tx = REMPART.x0; tx <= REMPART.x1; tx++) {
+      for (const ty of [REMPART.y0, REMPART.y1]) {
+        if (!world.isBlocked(tx, ty)) breches.push(`${tx},${ty}`);
+      }
+    }
+    for (let ty = REMPART.y0 + 1; ty < REMPART.y1; ty++) {
+      for (const tx of [REMPART.x0, REMPART.x1]) {
+        if (!world.isBlocked(tx, ty)) breches.push(`${tx},${ty}`);
+      }
+    }
+    // Les seules ouvertures sont les portes, et elles commencent ouvertes.
+    expect(breches.sort()).toEqual(PORTES.map((p) => `${p.tx},${p.ty}`).sort());
+  });
+
+  it('laisse chaque batiment a l\'ecart du rempart', () => {
+    // Le rempart est pose apres les plans et ne passe pas par `validerPlans` :
+    // un batiment qui le toucherait verrait ses murs ecrases sans un mot.
+    for (const region of world.regions) {
+      expect(region.x0, `${region.name} touche le rempart`).toBeGreaterThan(REMPART.x0 + 2);
+      expect(region.x1, `${region.name} touche le rempart`).toBeLessThan(REMPART.x1 - 2);
+      expect(region.y0, `${region.name} touche le rempart`).toBeGreaterThan(REMPART.y0 + 2);
+      expect(region.y1, `${region.name} touche le rempart`).toBeLessThan(REMPART.y1 - 2);
+    }
+  });
+
+  it('laisse une route du coeur de ville jusqu\'au campement, hors les murs', () => {
+    // La quete des brigands en depend : si le rempart enferme le joueur, elle
+    // devient injouable sans que rien ne le signale.
+    const chemin = findPath(world, LANDMARKS.square, LANDMARKS.camp, {
+      tolerance: 1,
+      maxNodes: 20000,
+    });
+    expect(chemin.length).toBeGreaterThan(0);
+    // Et cette route passe bien par une porte.
+    expect(chemin.some((pas) => PORTES.some((p) => p.tx === pas.tx && p.ty === pas.ty))).toBe(true);
   });
 
   it('donne au batiment en L une forme reelle, pas sa boite englobante', () => {

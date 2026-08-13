@@ -11,12 +11,12 @@ import './dialogue';
 /**
  * Habitants quelconques, en plus des quatre personnages nommes.
  *
- * Seize, parce que le quartier d'habitation compte huit maisons a deux lits :
+ * Quarante, parce que la ville compte vingt maisons a deux lits :
  * le nombre n'est pas choisi, il est **impose par la carte**. Loger davantage
  * de monde demande de batir, ce qui est la bonne contrainte — une ville se
  * peuple en construisant, pas en changeant une constante.
  */
-const HABITANTS_QUELCONQUES = 16;
+const HABITANTS_QUELCONQUES = 40;
 
 /**
  * Habitants de Valmoret.

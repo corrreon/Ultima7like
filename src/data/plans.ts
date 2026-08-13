@@ -187,20 +187,31 @@ export const BATIMENTS_PUBLICS: Plan[] = [
  */
 export function quartierResidentiel(): Plan[] {
   const maisons: Plan[] = [];
-  const colonnes = [10, 18, 26, 34];
-  for (const [rangee, oy] of [[0, 6], [1, 16]] as const) {
-    for (const [index, ox] of colonnes.entries()) {
-      const numero = rangee * colonnes.length + index;
-      maisons.push({
-        name: `${LOGIS_PREFIX} ${numero + 1}`,
-        ox,
-        oy,
-        // La rangee du nord ouvre au sud, celle du sud ouvre au nord : toutes
-        // donnent sur la rue, comme des maisons qui bordent une voie.
-        rows: maison(numero, rangee === 0 ? 'sud' : 'nord'),
-      });
-    }
-  }
+  let numero = 0;
+  const poser = (ox: number, oy: number, porte: 'sud' | 'nord'): void => {
+    maisons.push({
+      name: `${LOGIS_PREFIX} ${numero + 1}`,
+      ox,
+      oy,
+      rows: maison(numero, porte),
+    });
+    numero++;
+  };
+
+  // Quartier nord : deux rangees de part et d'autre de la rue. Celle du nord
+  // ouvre au sud, celle du sud ouvre au nord — toutes donnent sur la voie.
+  for (const ox of [10, 18, 26, 34]) poser(ox, 6, 'sud');
+  for (const ox of [10, 18, 26, 34]) poser(ox, 16, 'nord');
+
+  // Quartier est, de l'autre cote de la route centrale : meme principe, une
+  // rue entre deux rangees.
+  for (const ox of [50, 58, 66, 74]) poser(ox, 6, 'sud');
+  for (const ox of [50, 58, 66, 74]) poser(ox, 16, 'nord');
+
+  // Faubourg sud, adosse au rempart. Une seule rangee : au-dela, c'est la
+  // muraille, et une ville s'arrete quelque part.
+  for (const ox of [8, 16, 24, 32]) poser(ox, 58, 'nord');
+
   return maisons;
 }
 

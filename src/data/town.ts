@@ -15,7 +15,29 @@ export { LOGIS_PREFIX } from './plans';
  * a le sien, Exult Studio — un clone serieux finira par en avoir besoin).
  */
 
-export const WORLD_SIZE = 96;
+export const WORLD_SIZE = 128;
+
+/**
+ * Le rempart : rectangle englobant la ville, et ses deux portes.
+ *
+ * Une ville fortifiee n'est pas un bourg entoure d'un trait. Ce qui la fait
+ * lire comme telle tient a trois choses : une **enceinte continue** qu'on ne
+ * traverse pas, des **portes** qui sont les seuls passages — donc des points de
+ * rendez-vous obliges, ce qui change la circulation de tout le monde — et des
+ * **tours d'angle**, parce qu'un coin a angle droit se lit comme une cloture de
+ * jardin.
+ *
+ * Les portes tombent sur les routes existantes : une porte qui ne prolonge
+ * aucune voie est une porte de decor.
+ */
+export const REMPART = { x0: 4, y0: 2, x1: 84, y1: 68 } as const;
+/** Porte sud, sur la route centrale ; porte est, sur la route du levant. */
+export const PORTES = [
+  { tx: 44, ty: REMPART.y1 },
+  { tx: 45, ty: REMPART.y1 },
+  { tx: REMPART.x1, ty: 38 },
+  { tx: REMPART.x1, ty: 39 },
+] as const;
 
 /** Hauteur a laquelle sont posees les tuiles de toiture. */
 const ROOF_LIFT = 4;
@@ -132,6 +154,61 @@ function onTable(world: World, shape: string, tx: number, ty: number): GameObjec
  */
 export function reposerEnveloppe(world: World): void {
   for (const plan of tousLesPlans()) stampBuilding(world, plan, true);
+  stampRempart(world, true);
+}
+
+/**
+ * Le rempart.
+ *
+ * Une enceinte continue, deux portes sur les routes, et des tours aux angles.
+ *
+ * Les tours sont un massif de trois sur trois, pas un simple coin : un angle
+ * droit d'une tuile se lit comme une cloture de jardin, alors qu'un
+ * epaississement se lit comme un ouvrage. C'est le meme raisonnement que le
+ * couronnement des murs — ce qui donne l'echelle est la masse, pas le trace.
+ *
+ * Les murs portent le drapeau `rebuilt` : ils ne sont pas sauvegardes et sont
+ * reposes au chargement. Les portes, elles, retiennent leur etat ouvert ou
+ * ferme et sont donc de vrais objets de partie.
+ */
+function stampRempart(world: World, enveloppeSeule = false): void {
+  const { x0, y0, x1, y1 } = REMPART;
+  const estPorte = (tx: number, ty: number): boolean =>
+    PORTES.some((p) => p.tx === tx && p.ty === ty);
+
+  const poserMur = (tx: number, ty: number): void => {
+    if (!world.inBounds(tx, ty)) return;
+    if (estPorte(tx, ty)) return;
+    if (!enveloppeSeule) world.setTerrain(tx, ty, 'stone', (tx * 3 + ty * 5) % 4);
+    const hash = (tx * 7 + ty * 13) % 11;
+    place(world, 'wall', tx, ty, { frame: hash === 0 ? 2 : hash === 4 || hash === 8 ? 1 : 0 });
+  };
+
+  for (let tx = x0; tx <= x1; tx++) {
+    poserMur(tx, y0);
+    poserMur(tx, y1);
+  }
+  for (let ty = y0 + 1; ty < y1; ty++) {
+    poserMur(x0, ty);
+    poserMur(x1, ty);
+  }
+
+  // Tours d'angle : un massif de 3x3 qui deborde vers l'interieur.
+  for (const [cx, cy, sx, sy] of [
+    [x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1],
+  ] as const) {
+    for (let dy = 0; dy < 3; dy++) {
+      for (let dx = 0; dx < 3; dx++) poserMur(cx + dx * sx, cy + dy * sy);
+    }
+  }
+
+  // Les portes. Elles ne sont posees qu'a la construction : leur etat ouvert
+  // ou ferme appartient a la partie, et la sauvegarde le retient.
+  if (enveloppeSeule) return;
+  for (const porte of PORTES) {
+    world.setTerrain(porte.tx, porte.ty, 'dirt', (porte.tx * 5 + porte.ty * 3) % 4);
+    place(world, 'door', porte.tx, porte.ty, { frame: 1, name: 'Porte de la ville' });
+  }
 }
 
 /**
@@ -427,7 +504,7 @@ export function buildTown(seed = 1337, strict = true): World {
   }
 
   // Etang, avec sa greve de sable
-  const pond = { cx: 74, cy: 60, r: 6 };
+  const pond = { cx: 102, cy: 46, r: 6 };
   for (let ty = pond.cy - pond.r - 2; ty <= pond.cy + pond.r + 2; ty++) {
     for (let tx = pond.cx - pond.r - 2; tx <= pond.cx + pond.r + 2; tx++) {
       const d = Math.hypot(tx - pond.cx, ty - pond.cy);
@@ -437,8 +514,10 @@ export function buildTown(seed = 1337, strict = true): World {
   }
 
   // Routes et place centrale
-  stampRoad(world, 20, 38, 72, 39);
-  stampRoad(world, 44, 16, 45, 62);
+  // Les deux voies traversantes vont d'une porte a l'autre : une route qui
+  // s'arrete avant le rempart laisse la porte sans raison d'etre.
+  stampRoad(world, 20, 38, REMPART.x1, 39);
+  stampRoad(world, 44, 4, 45, REMPART.y1);
   stampStone(world, 41, 36, 48, 42);
   stampRoad(world, 31, 33, 31, 38); // sortie de la taverne
   stampRoad(world, 57, 35, 57, 38); // sortie de la forge
@@ -450,12 +529,15 @@ export function buildTown(seed = 1337, strict = true): World {
   // Sentier vers le campement. Il s'arrete a quelques tuiles du feu : les
   // brigands n'entretiennent pas de chemin jusqu'a chez eux, et le joueur doit
   // garder la derniere approche a faire.
-  stampTrail(world, [[44, 60], [38, 66], [31, 71], [26, 74]]);
+  stampTrail(world, [[44, 70], [38, 74], [31, 78], [26, 80]]);
 
   // La rue du quartier d'habitation, entre les deux rangees de maisons. Elle
   // rejoint la route verticale a l'est : un quartier qu'aucune voie ne relie au
   // reste se lit comme un decor pose a cote du bourg.
-  stampRoad(world, 10, 14, 45, 15);
+  // La rue des quartiers d'habitation, d'un bout a l'autre de la ville, et
+  // celle du faubourg sud.
+  stampRoad(world, 8, 14, 81, 15);
+  stampRoad(world, 6, 56, 40, 57);
 
   const plans = tousLesPlans();
   // Une carte incoherente doit se signaler ici, pas se deviner en jeu. Les
@@ -466,6 +548,7 @@ export function buildTown(seed = 1337, strict = true): World {
     throw new Error(`Plans de carte invalides :\n  ${problemes.join('\n  ')}`);
   }
   for (const plan of plans) stampBuilding(world, plan);
+  stampRempart(world);
 
   // Vegetation : on evite les routes, les batiments et leurs abords.
   const isFree = (tx: number, ty: number): boolean => {

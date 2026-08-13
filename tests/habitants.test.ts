@@ -7,13 +7,13 @@ import { buildTown, LANDMARKS, LOGIS_PREFIX } from '../src/data/town';
 import { populate } from '../src/data/npcs';
 
 // Seize lits factices : le quartier reel est verifie par les tests de carte.
-const lits = Array.from({ length: 16 }, (_, i) => ({ tx: 12 + (i % 4) * 8, ty: 8 + Math.floor(i / 4) * 5 }));
+const lits = Array.from({ length: 40 }, (_, i) => ({ tx: 12 + (i % 4) * 8, ty: 8 + Math.floor(i / 4) * 5 }));
 const lieux = { place: LANDMARKS.square, taverne: LANDMARKS.tavernTableB, lits };
 const foule = (n: number, graine = 1) => habitantsQuelconques(n, lieux, new Rng(graine));
 
 describe('habitants quelconques', () => {
   it('donne a chacun un nom, un metier et de quoi vivre', () => {
-    for (const h of foule(16)) {
+    for (const h of foule(40)) {
       expect(h.displayName.length).toBeGreaterThan(2);
       expect(h.conversationId).toBeTruthy();
       expect(h.schedule.length).toBeGreaterThan(3);
@@ -22,7 +22,7 @@ describe('habitants quelconques', () => {
   });
 
   it('ne fabrique pas seize fois la meme personne', () => {
-    const gens = foule(16);
+    const gens = foule(40);
     // Les noms ne sont pas tous distincts — dans un bourg non plus — mais la
     // foule ne doit pas se reduire a une poignee de doublons.
     expect(new Set(gens.map((h) => h.displayName)).size).toBeGreaterThanOrEqual(10);
@@ -30,8 +30,8 @@ describe('habitants quelconques', () => {
   });
 
   it('est deterministe : l\'empreinte de carte en depend', () => {
-    const a = foule(16).map((h) => h.displayName).join('|');
-    const b = foule(16).map((h) => h.displayName).join('|');
+    const a = foule(40).map((h) => h.displayName).join('|');
+    const b = foule(40).map((h) => h.displayName).join('|');
     expect(a).toBe(b);
   });
 
@@ -48,7 +48,7 @@ describe('habitants quelconques', () => {
 
   it('sait quelque chose du bourg, pas seulement de soi', () => {
     // C'est le point : un passant qui ne parle que de lui est un figurant.
-    const gens = foule(16);
+    const gens = foule(40);
     const rumeurs = gens.map((h) => {
       const conv = getConversation(h.conversationId!)!;
       return conv.topics.find((t) => t.id === 'rumeur')!.text;
@@ -63,7 +63,7 @@ describe('habitants quelconques', () => {
     const world = buildTown();
     populate(world);
     const quelconques = world.actors.filter((a) => a.conversationId?.startsWith('habitant_'));
-    expect(quelconques.length).toBe(16);
+    expect(quelconques.length).toBe(40);
 
     const occupes = new Set<string>();
     for (const habitant of quelconques) {
